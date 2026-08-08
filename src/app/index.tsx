@@ -1,98 +1,74 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { AppBar } from '@/components/AppBar';
+import { Card } from '@/components/Card';
+import { ModeCard } from '@/components/ModeCard';
+import { RangePicker } from '@/components/RangePicker';
+import { MODES, MODE_KEYS } from '@/lib/fields';
+import { pool, rangeSlug } from '@/lib/range';
+import { useRange } from '@/state/RangeContext';
+import { MAX_CONTENT_WIDTH, colors, spacing, type } from '@/theme';
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
+export default function MenuScreen() {
+  const { range, setRange } = useRange();
+  const insets = useSafeAreaInsets();
+  const count = pool(range).length;
+
   return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
-}
+    <View style={styles.root}>
+      <AppBar title="US Presidents Quiz" />
 
-export default function HomeScreen() {
-  return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xl }]}
+        showsVerticalScrollIndicator={false}>
+        <View style={styles.inner}>
+          <Text style={styles.intro}>
+            Every question shows one of three things — the presidency number, the full name, or the
+            years in office. You supply the other two.
+          </Text>
 
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
+          <Card style={styles.rangeCard}>
+            <RangePicker range={range} onChange={setRange} />
+          </Card>
 
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
+          <View style={styles.modes}>
+            {MODE_KEYS.map((key) => (
+              <ModeCard
+                key={key}
+                title={MODES[key].title}
+                blurb={MODES[key].blurb}
+                onPress={() =>
+                  router.push({
+                    pathname: '/quiz/[mode]',
+                    params: { mode: key, range: rangeSlug(range) },
+                  })
+                }
+              />
+            ))}
+          </View>
 
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
+          <Pressable
+            onPress={() => router.push('/list')}
+            accessibilityRole="button"
+            style={({ pressed }) => [styles.browse, pressed && styles.browsePressed]}>
+            <Text style={styles.browseText}>Browse all {count} terms →</Text>
+          </Pressable>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
-  },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
-  },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
-  },
-  title: {
-    textAlign: 'center',
-  },
-  code: {
-    textTransform: 'uppercase',
-  },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
-  },
+  root: { flex: 1 },
+  content: { paddingHorizontal: spacing.lg, alignItems: 'center' },
+  inner: { width: '100%', maxWidth: MAX_CONTENT_WIDTH, gap: spacing.lg },
+  intro: { ...type.body, color: colors.muted },
+  rangeCard: { paddingVertical: spacing.lg },
+  modes: { gap: spacing.md },
+  browse: { alignSelf: 'flex-start', paddingVertical: spacing.sm },
+  browsePressed: { opacity: 0.6 },
+  browseText: { ...type.body, color: colors.brick, textDecorationLine: 'underline' },
 });
