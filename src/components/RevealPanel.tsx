@@ -2,10 +2,10 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import type { President } from '@/data/presidents';
 import { yearsText } from '@/lib/answers';
-import { colors, fonts, radius, spacing, type } from '@/theme';
+import { colors, fonts, radius, type } from '@/theme';
 
-/** Shows the verdict and every term that counted as an answer — both terms for
- *  Cleveland and Trump when the name was the prompt. */
+/** .reveal — styles.css:484. Shows the verdict and every term that counted as
+ *  an answer: both terms for Cleveland and Trump when the name was the prompt. */
 export function RevealPanel({
   allRight,
   terms,
@@ -40,25 +40,22 @@ export function RevealPanel({
 
 const styles = StyleSheet.create({
   panel: {
-    gap: spacing.xs,
-    padding: spacing.md,
-    borderRadius: radius.sm,
+    gap: 2,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: radius.input,
     borderWidth: 1,
   },
-  panelOk: { backgroundColor: colors.okBg, borderColor: colors.ok },
-  panelBad: { backgroundColor: colors.badBg, borderColor: colors.bad },
-  verdict: { fontFamily: fonts.serif, fontSize: 18, marginBottom: spacing.xs },
+  panelOk: { backgroundColor: colors.okBg, borderColor: colors.okBorder },
+  panelBad: { backgroundColor: colors.badBg, borderColor: colors.badBorder },
+  verdict: { ...type.eyebrow, marginBottom: 8 },
   verdictOk: { color: colors.ok },
   verdictBad: { color: colors.bad },
-  term: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm, flexWrap: 'wrap' },
-  termNo: {
-    ...type.small,
-    color: colors.brown,
-    width: 34,
-    fontVariant: ['tabular-nums'],
-  },
-  termName: { ...type.body, flexShrink: 1, fontFamily: fonts.serif },
-  termYears: { ...type.small, color: colors.stone, fontVariant: ['tabular-nums'] },
-  born: { ...type.small, marginTop: spacing.xs, color: colors.muted },
-  bornName: { fontFamily: fonts.serif, color: colors.ink },
+  term: { flexDirection: 'row', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' },
+  termNo: { fontSize: 16, fontWeight: '700', color: colors.brick, fontVariant: ['tabular-nums'] },
+  termName: { fontFamily: fonts.serifBold, fontSize: 16, color: colors.ink, flexShrink: 1 },
+  termYears: { fontSize: 15, color: colors.muted, fontVariant: ['tabular-nums'] },
+  born: { fontSize: 14, lineHeight: 20, fontStyle: 'italic', color: colors.muted, marginTop: 10 },
+  // .born strong — styles.css:535: the name itself drops back out of italic.
+  bornName: { fontStyle: 'normal', fontWeight: '600', color: colors.brown },
 });

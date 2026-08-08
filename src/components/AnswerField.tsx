@@ -2,7 +2,11 @@ import { forwardRef } from 'react';
 import { StyleSheet, Text, TextInput, View, type ReturnKeyTypeOptions } from 'react-native';
 
 import { FIELDS, type FieldKey } from '@/lib/fields';
-import { colors, radius, spacing, type } from '@/theme';
+import { colors, radius } from '@/theme';
+
+/* .field — styles.css:442. The label is plain sentence-case body copy, not the
+ * small-caps eyebrow; grading appends " ✓" / " ✕" to it and recolours the well,
+ * as in styles.css:476-480. */
 
 type Props = {
   field: FieldKey;
@@ -24,9 +28,9 @@ export const AnswerField = forwardRef<TextInput, Props>(function AnswerField(
 
   return (
     <View style={styles.wrap}>
-      <Text style={[styles.label, graded && (mark ? styles.labelOk : styles.labelBad)]}>
+      <Text style={styles.label}>
         {spec.label}
-        {graded ? (mark ? ' ✓' : ' ✕') : ''}
+        {graded ? <Text style={mark ? styles.ok : styles.bad}>{mark ? ' ✓' : ' ✕'}</Text> : null}
       </Text>
       <TextInput
         ref={ref}
@@ -34,7 +38,7 @@ export const AnswerField = forwardRef<TextInput, Props>(function AnswerField(
         onChangeText={onChangeText}
         editable={!graded}
         placeholder={spec.placeholder}
-        placeholderTextColor={colors.khaki}
+        placeholderTextColor={colors.placeholder}
         keyboardType={spec.keyboardType}
         returnKeyType={returnKeyType}
         onSubmitEditing={onSubmitEditing}
@@ -49,20 +53,20 @@ export const AnswerField = forwardRef<TextInput, Props>(function AnswerField(
 });
 
 const styles = StyleSheet.create({
-  wrap: { gap: spacing.xs },
-  label: { ...type.label, textTransform: 'uppercase' },
-  labelOk: { color: colors.ok },
-  labelBad: { color: colors.bad },
+  wrap: { gap: 6 }, // 0.35rem
+  label: { fontSize: 13, fontWeight: '600', color: colors.muted },
+  ok: { color: colors.ok },
+  bad: { color: colors.bad },
   input: {
-    minHeight: 52,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    fontSize: 17,
+    minHeight: 46,
+    paddingVertical: 11,
+    paddingHorizontal: 13,
+    fontSize: 16, // >=16 stops iOS zoom-on-focus, as in the web build
     color: colors.ink,
     backgroundColor: colors.paperWarm,
-    borderRadius: radius.sm,
+    borderRadius: radius.input,
     borderWidth: 1,
-    borderColor: colors.lineSolid,
+    borderColor: colors.tan,
   },
   inputOk: { borderColor: colors.ok, backgroundColor: colors.okBg },
   inputBad: { borderColor: colors.bad, backgroundColor: colors.badBg },

@@ -8,7 +8,7 @@ import { colors, scrim } from '@/theme';
  *  were body::before / body::after; here they sit behind the router's screens. */
 export function Background() {
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+    <View style={styles.fill}>
       <Image
         source={require('@/assets/images/background.jpg')}
         style={StyleSheet.absoluteFill}
@@ -24,5 +24,19 @@ export function Background() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  // styles.css:52 paints #cbb99b under the photo; it shows only while the
+  // bundled asset decodes, but it keeps that moment in the right key.
+  fill: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    pointerEvents: 'none',
+    backgroundColor: '#cbb99b',
+  },
+});
 
 export const backgroundFallbackColor = colors.tan;

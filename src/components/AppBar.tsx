@@ -1,65 +1,55 @@
 import { router } from 'expo-router';
-import type { ReactNode } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors, fonts, spacing } from '@/theme';
+import { colors, type, useLayout } from '@/theme';
 
-type Props = {
-  title: string;
-  /** Shows a back affordance. Android's hardware back still works regardless. */
-  showBack?: boolean;
-  right?: ReactNode;
-};
+/* .bar — styles.css:81. Brand on the left, score on the right, sitting on a
+ * 2px brick rule. The brand is the web build's link home; Android's hardware
+ * back and the "Back to modes" link at the foot of each screen cover the rest,
+ * which is why there is no back chevron here. */
 
-export function AppBar({ title, showBack, right }: Props) {
+export function AppBar({ score }: { score?: { right: number; asked: number } }) {
   const insets = useSafeAreaInsets();
+  const { maxWidth, gutter } = useLayout();
 
   return (
-    <View style={[styles.bar, { paddingTop: insets.top + spacing.sm }]}>
-      {showBack ? (
+    <View style={[styles.outer, { paddingTop: insets.top + 8, paddingHorizontal: gutter }]}>
+      <View style={[styles.bar, { maxWidth }]}>
         <Pressable
-          onPress={() => router.back()}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-          hitSlop={12}
-          style={({ pressed }) => [styles.back, pressed && styles.pressed]}>
-          <Text style={styles.backGlyph}>←</Text>
+          onPress={() => router.navigate('/')}
+          accessibilityRole="link"
+          accessibilityLabel="US Presidents Quiz, back to modes"
+          hitSlop={8}
+          style={({ pressed }) => pressed && styles.pressed}>
+          <Text style={styles.brand}>US Presidents Quiz</Text>
         </Pressable>
-      ) : null}
 
-      <Text style={styles.title} numberOfLines={1}>
-        {title}
-      </Text>
-
-      <View style={styles.right}>{right}</View>
+        {score ? (
+          <Text style={styles.score}>
+            {score.right} / {score.asked}
+          </Text>
+        ) : null}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  outer: { alignItems: 'center' },
   bar: {
+    width: '100%',
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.sm,
+    // Baseline alignment, as in the web build, so the score sits on the brand's
+    // line rather than centred against its taller serif box.
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: 16,
+    paddingBottom: 10,
+    borderBottomWidth: 2,
+    borderBottomColor: colors.brick,
   },
-  back: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: -spacing.sm,
-  },
-  backGlyph: { fontSize: 24, color: colors.brown, lineHeight: Platform.OS === 'ios' ? 28 : 26 },
-  pressed: { opacity: 0.5 },
-  title: {
-    flex: 1,
-    fontFamily: fonts.serif,
-    fontSize: 19,
-    color: colors.brick,
-    letterSpacing: 0.2,
-  },
-  right: { minWidth: 0 },
+  pressed: { opacity: 0.6 },
+  brand: type.brand,
+  score: { ...type.score, fontVariant: ['tabular-nums'] },
 });

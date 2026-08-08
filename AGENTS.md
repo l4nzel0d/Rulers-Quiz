@@ -31,10 +31,17 @@ npx tsc --noEmit   # typecheck
   `ThemeProvider` value in `src/app/_layout.tsx` does.
 - **Import fonts per weight** (`@expo-google-fonts/gelasio/400Regular`), never from the package
   root: the barrel re-exports all eight faces and Metro bundles every one (~850KB).
-- **Percentage widths inside a `FlatList` cell** resolve against the shrink-wrapped cell. Put
-  the width cap on the list's `style`, not its `contentContainerStyle`.
 - **No TS parameter properties** in `src/lib/` — `node --experimental-strip-types` cannot parse
   them, and that would break `npm test`.
+- **`RangePicker`'s twin-thumb slider is two fixes deep.** It is hand-built on `PanResponder`
+  (core RN, so no extra dependency). Both of these are load-bearing: the responder must claim
+  the gesture at *capture* phase and refuse `onPanResponderTerminationRequest`, or the enclosing
+  `ScrollView` steals it and every drag degrades to a tap; and the thumbs must stay
+  `pointerEvents: 'none'`, because `locationX` is measured against the event target, so a touch
+  that lands on a thumb would report 0-22px and snap it to #1.
+- **`src/theme/index.ts` is a translation of `.legacy/styles.css`**, not an independent design
+  system. Numbers are the CSS values at a 16px root — `0.75rem` reads as `12`. Change the CSS
+  reference and the theme together, and keep the `styles.css:NNN` line references honest.
 
 ## Grading rules worth preserving
 

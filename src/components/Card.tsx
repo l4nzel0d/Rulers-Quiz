@@ -1,19 +1,26 @@
 import type { ReactNode } from 'react';
-import { StyleSheet, View, type ViewStyle } from 'react-native';
+import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { cardShadow, colors, radius, spacing } from '@/theme';
+import { cardShadow, colors, radius } from '@/theme';
 
-export function Card({ children, style }: { children: ReactNode; style?: ViewStyle }) {
+/** The shared surface behind .card / .mode / .rows / .range — styles.css:128. */
+export function Card({
+  children,
+  style,
+}: {
+  children: ReactNode;
+  style?: StyleProp<ViewStyle>;
+}) {
   return <View style={[styles.card, style]}>{children}</View>;
 }
 
+export const surface = {
+  backgroundColor: colors.card,
+  borderRadius: radius.card,
+  borderWidth: 1,
+  borderColor: colors.line,
+} as const;
+
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.card,
-    borderRadius: radius.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.cardBorder,
-    padding: spacing.lg,
-    ...cardShadow,
-  },
+  card: { ...surface, ...cardShadow },
 });

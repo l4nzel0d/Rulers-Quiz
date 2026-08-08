@@ -1,5 +1,5 @@
-import { Redirect, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
 import {
   Keyboard,
@@ -19,11 +19,12 @@ import { AppBar } from '@/components/AppBar';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { RevealPanel } from '@/components/RevealPanel';
+import { TextLink } from '@/components/TextLink';
 import { FIELDS, MODES, isModeKey, type FieldKey } from '@/lib/fields';
 import { parseRange, pool, rangeText, type Range } from '@/lib/range';
 import { Deck, answerFields, grade, pickGiven, type Grade, type Question } from '@/lib/quiz';
 import { useRange } from '@/state/RangeContext';
-import { MAX_CONTENT_WIDTH, colors, fonts, spacing, type } from '@/theme';
+import { colors, fonts, type, useLayout } from '@/theme';
 
 type State = {
   asked: number;
@@ -72,6 +73,7 @@ export default function QuizScreen() {
   const { range: storedRange } = useRange();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
+  const { wide, maxWidth, gutter } = useLayout();
 
   // The route may carry a range (web deep links keep a round shareable);
   // otherwise fall back to the persisted choice.
@@ -117,38 +119,38 @@ export default function QuizScreen() {
   const mode = params.mode;
   const q = state.q;
 
-  // The web build used clamp(1.7rem, 7vw, 2.3rem) for the prompt value.
+  // The web build used clamp(1.7rem, 7vw, 2.3rem) — styles.css:420.
   const givenFontSize = Math.max(27, Math.min(37, width * 0.07));
 
   return (
     <View style={styles.root}>
-      <AppBar
-        title={MODES[mode].title}
-        showBack
-        right={
-          <Text style={styles.score}>
-            {state.right} / {state.asked}
-          </Text>
-        }
-      />
+      <AppBar score={{ right: state.right, asked: state.asked }} />
 
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
-          contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xl }]}
+          contentContainerStyle={[
+            styles.content,
+            { paddingHorizontal: gutter, paddingBottom: insets.bottom + 24 },
+          ]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
-          <View style={styles.inner}>
-            <Text style={styles.rangeTag}>{rangeText(activeRange)}</Text>
+          <View style={[styles.inner, { maxWidth }]}>
+            {/* .mode-tag — app.js:341. The separator dot is tan, the range stone. */}
+            <Text style={styles.modeTag}>
+              {MODES[mode].title}
+              <Text style={styles.tagDot}> · </Text>
+              <Text style={styles.tagRange}>{rangeText(activeRange)}</Text>
+            </Text>
 
             {q ? (
-              <Card style={styles.card}>
+              <Card style={[styles.card, wide && styles.cardWide]}>
                 <Text style={styles.givenLabel}>{FIELDS[q.given].label}</Text>
                 <Text
                   style={[
                     styles.givenValue,
-                    { fontSize: givenFontSize, lineHeight: givenFontSize * 1.2 },
+                    { fontSize: givenFontSize, lineHeight: givenFontSize * 1.15 },
                     q.given !== 'name' && styles.givenNumeric,
                   ]}>
                   {FIELDS[q.given].show(q.rec)}
@@ -165,9 +167,7 @@ export default function QuizScreen() {
                       mark={state.result ? (state.result.marks[f] ?? false) : null}
                       autoFocus={i === 0 && !state.result}
                       returnKeyType={i === 0 ? 'next' : 'done'}
-                      onSubmitEditing={
-                        i === 0 ? () => secondInputRef.current?.focus() : onGrade
-                      }
+                      onSubmitEditing={i === 0 ? () => secondInputRef.current?.focus() : onGrade}
                     />
                   ))}
                 </View>
@@ -180,11 +180,19 @@ export default function QuizScreen() {
                   />
                 ) : null}
 
-                {state.result ? (
-                  <Button label="Next question" onPress={nextQuestion} />
-                ) : (
-                  <Button label="Check" onPress={onGrade} />
-                )}
+                {/* .actions — full width on phones, 12rem wide past the
+                    breakpoint (styles.css:592). */}
+                <View style={styles.actions}>
+                  {state.result ? (
+                    <Button
+                      label="Next question"
+                      onPress={nextQuestion}
+                      style={wide && styles.buttonWide}
+                    />
+                  ) : (
+                    <Button label="Check" onPress={onGrade} style={wide && styles.buttonWide} />
+                  )}
+                </View>
               </Card>
             ) : (
               <Card style={styles.card}>
@@ -195,6 +203,8 @@ export default function QuizScreen() {
             <Text style={styles.hint}>
               Full names only — birth names accepted where they differ.
             </Text>
+
+            <TextLink label="← Back to modes" onPress={() => router.navigate('/')} />
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -205,19 +215,30 @@ export default function QuizScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   flex: { flex: 1 },
-  content: { paddingHorizontal: spacing.lg, alignItems: 'center' },
-  inner: { width: '100%', maxWidth: MAX_CONTENT_WIDTH, gap: spacing.md },
-  score: {
-    fontFamily: fonts.serif,
-    fontSize: 16,
-    color: colors.brown,
-    fontVariant: ['tabular-nums'],
+  content: { alignItems: 'center', paddingTop: 16 },
+  inner: { width: '100%', gap: 16 },
+
+  modeTag: type.eyebrow,
+  tagDot: { color: colors.tan },
+  tagRange: { color: colors.stone },
+
+  card: { paddingVertical: 24, paddingHorizontal: 20, gap: 20 },
+  cardWide: { paddingVertical: 32, paddingHorizontal: 28 },
+
+  givenLabel: type.eyebrow,
+  givenValue: {
+    fontFamily: fonts.serifBold,
+    color: colors.ink,
+    letterSpacing: -0.3,
+    // Pulls the value up under its label; the web build did the same with a
+    // -0.9rem top margin against the card's 1.25rem gap (styles.css:418).
+    marginTop: -14,
   },
-  rangeTag: { ...type.small, color: colors.brown },
-  card: { gap: spacing.lg },
-  givenLabel: { ...type.label, textTransform: 'uppercase' },
-  givenValue: { fontFamily: fonts.serif, color: colors.ink },
-  givenNumeric: { fontVariant: ['tabular-nums'] },
-  fields: { gap: spacing.md },
-  hint: { ...type.small, color: colors.stone },
+  givenNumeric: { color: colors.brick, fontVariant: ['tabular-nums'] },
+
+  fields: { gap: 14 },
+  actions: { flexDirection: 'row' },
+  buttonWide: { flex: 0, minWidth: 192 },
+
+  hint: { fontSize: 13, lineHeight: 19, color: colors.muted, textAlign: 'center' },
 });
