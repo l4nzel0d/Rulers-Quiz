@@ -88,6 +88,7 @@ export default function QuizScreen() {
   /* One slot per answer field, so the return key can walk the whole chain.
    * Mixed alternates between two and three fields, hence an array. */
   const inputRefs = useRef<(TextInput | null)[]>([]);
+  const nextButtonRef = useRef<View | null>(null);
 
   const picks = useMemo(() => pool(activeRange), [activeRange]);
 
@@ -105,6 +106,15 @@ export default function QuizScreen() {
     deckRef.current = new Deck(picks);
     nextQuestion();
   }, [picks, nextQuestion]);
+
+  /* Web only: hand focus to "Next question" once the answer is graded, so the
+   * whole round is playable from the keyboard — type, Enter to check, Enter to
+   * advance. On a phone the button is a touch target and stealing focus would
+   * only re-raise the keyboard. */
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !state.result) return;
+    nextButtonRef.current?.focus();
+  }, [state.result]);
 
   const onGrade = useCallback(() => {
     if (!state.q || state.result) return;
@@ -181,7 +191,13 @@ export default function QuizScreen() {
                         mark={state.result ? (state.result.marks[f] ?? false) : null}
                         // A portrait has to be looked at first; raising the
                         // keyboard would scroll the whole prompt off-screen.
-                        autoFocus={i === 0 && !state.result && q.given !== 'portrait'}
+                        // The web has no on-screen keyboard, so it focuses
+                        // every prompt, portraits included.
+                        autoFocus={
+                          i === 0 &&
+                          !state.result &&
+                          (Platform.OS === 'web' || q.given !== 'portrait')
+                        }
                         returnKeyType={last ? 'done' : 'next'}
                         onSubmitEditing={
                           last ? onGrade : () => inputRefs.current[i + 1]?.focus()
@@ -204,6 +220,7 @@ export default function QuizScreen() {
                 <View style={styles.actions}>
                   {state.result ? (
                     <Button
+                      ref={nextButtonRef}
                       label="Next question"
                       onPress={nextQuestion}
                       style={wide && styles.buttonWide}

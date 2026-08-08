@@ -1,4 +1,13 @@
-import { Platform, Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from 'react-native';
+import { forwardRef } from 'react';
+import {
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  type StyleProp,
+  type View,
+  type ViewStyle,
+} from 'react-native';
 
 import { colors, radius } from '@/theme';
 
@@ -13,10 +22,17 @@ type Props = {
   style?: StyleProp<ViewStyle>;
 };
 
-export function Button({ label, onPress, variant = 'primary', disabled, style }: Props) {
+/* The ref is what lets the quiz screen move web focus onto "Next question"
+ * after a grade; react-native-web renders the Pressable as a tabbable
+ * role="button" and turns Enter/Space on it into a press. */
+export const Button = forwardRef<View, Props>(function Button(
+  { label, onPress, variant = 'primary', disabled, style },
+  ref
+) {
   const primary = variant === 'primary';
   return (
     <Pressable
+      ref={ref}
       onPress={onPress}
       disabled={disabled}
       accessibilityRole="button"
@@ -32,7 +48,7 @@ export function Button({ label, onPress, variant = 'primary', disabled, style }:
       <Text style={[styles.label, primary ? styles.labelPrimary : styles.labelQuiet]}>{label}</Text>
     </Pressable>
   );
-}
+});
 
 const styles = StyleSheet.create({
   base: {
