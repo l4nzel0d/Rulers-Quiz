@@ -43,6 +43,13 @@ npx tsc --noEmit   # typecheck
   system. Numbers are the CSS values at a 16px root — `0.75rem` reads as `12`. Change the CSS
   reference and the theme together, and keep the `styles.css:NNN` line references honest.
 
+## Hosting the web build
+
+`npx expo export --platform web` writes a static `dist/` (~2MB). Static rendering emits one
+HTML file per route, and the dynamic one lands as a literal `dist/quiz/[mode].html` — so
+`/quiz/mixed` 404s on any plain static host unless it is rewritten. That rewrite is the whole
+content of `vercel.json`; a different host needs its own equivalent.
+
 ## Grading rules worth preserving
 
 Cleveland (#22/#24) and Trump (#45/#47) each hold two presidency numbers. When the *name* is
