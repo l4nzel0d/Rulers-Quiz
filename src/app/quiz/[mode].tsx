@@ -18,9 +18,10 @@ import { AnswerField } from '@/components/AnswerField';
 import { AppBar } from '@/components/AppBar';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
+import { PortraitPrompt } from '@/components/PortraitPrompt';
 import { RevealPanel } from '@/components/RevealPanel';
 import { TextLink } from '@/components/TextLink';
-import { FIELDS, MODES, isModeKey, type FieldKey } from '@/lib/fields';
+import { FIELDS, MODES, givenLabel, isModeKey, type FieldKey } from '@/lib/fields';
 import { parseRange, pool, rangeText, type Range } from '@/lib/range';
 import { Deck, answerFields, grade, pickGiven, type Grade, type Question } from '@/lib/quiz';
 import { useRange } from '@/state/RangeContext';
@@ -84,7 +85,9 @@ export default function QuizScreen() {
 
   const [state, dispatch] = useReducer(reducer, initialState);
   const deckRef = useRef<Deck | null>(null);
-  const secondInputRef = useRef<TextInput>(null);
+  /* One slot per answer field, so the return key can walk the whole chain.
+   * Mixed alternates between two and three fields, hence an array. */
+  const inputRefs = useRef<(TextInput | null)[]>([]);
 
   const picks = useMemo(() => pool(activeRange), [activeRange]);
 
@@ -92,6 +95,7 @@ export default function QuizScreen() {
     if (!deckRef.current) return;
     const rec = deckRef.current.draw();
     const given = pickGiven(isModeKey(params.mode) ? params.mode : 'mixed');
+    inputRefs.current = [];
     dispatch({ kind: 'next', q: { rec, given, answers: answerFields(given) } });
   }, [params.mode]);
 
@@ -146,30 +150,45 @@ export default function QuizScreen() {
 
             {q ? (
               <Card style={[styles.card, wide && styles.cardWide]}>
-                <Text style={styles.givenLabel}>{FIELDS[q.given].label}</Text>
-                <Text
-                  style={[
-                    styles.givenValue,
-                    { fontSize: givenFontSize, lineHeight: givenFontSize * 1.15 },
-                    q.given !== 'name' && styles.givenNumeric,
-                  ]}>
-                  {FIELDS[q.given].show(q.rec)}
-                </Text>
+                <Text style={styles.givenLabel}>{givenLabel(q.given)}</Text>
+                {q.given === 'portrait' ? (
+                  <PortraitPrompt no={q.rec.no} />
+                ) : (
+                  <Text
+                    style={[
+                      styles.givenValue,
+                      { fontSize: givenFontSize, lineHeight: givenFontSize * 1.15 },
+                      q.given !== 'name' && styles.givenNumeric,
+                    ]}>
+                    {FIELDS[q.given].show(q.rec)}
+                  </Text>
+                )}
 
                 <View style={styles.fields}>
-                  {q.answers.map((f, i) => (
-                    <AnswerField
-                      key={`${state.qIndex}-${f}`}
-                      ref={i === 1 ? secondInputRef : undefined}
-                      field={f}
-                      value={state.inputs[f] ?? ''}
-                      onChangeText={(v) => dispatch({ kind: 'input', field: f, value: v })}
-                      mark={state.result ? (state.result.marks[f] ?? false) : null}
-                      autoFocus={i === 0 && !state.result}
-                      returnKeyType={i === 0 ? 'next' : 'done'}
-                      onSubmitEditing={i === 0 ? () => secondInputRef.current?.focus() : onGrade}
-                    />
-                  ))}
+                  {q.answers.map((f, i) => {
+                    const last = i === q.answers.length - 1;
+                    return (
+                      <AnswerField
+                        key={`${state.qIndex}-${f}`}
+                        // Block body: React 19 treats a returned value from a
+                        // callback ref as a cleanup function and throws.
+                        ref={(el) => {
+                          inputRefs.current[i] = el;
+                        }}
+                        field={f}
+                        value={state.inputs[f] ?? ''}
+                        onChangeText={(v) => dispatch({ kind: 'input', field: f, value: v })}
+                        mark={state.result ? (state.result.marks[f] ?? false) : null}
+                        // A portrait has to be looked at first; raising the
+                        // keyboard would scroll the whole prompt off-screen.
+                        autoFocus={i === 0 && !state.result && q.given !== 'portrait'}
+                        returnKeyType={last ? 'done' : 'next'}
+                        onSubmitEditing={
+                          last ? onGrade : () => inputRefs.current[i + 1]?.focus()
+                        }
+                      />
+                    );
+                  })}
                 </View>
 
                 {state.result ? (

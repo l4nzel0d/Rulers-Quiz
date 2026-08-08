@@ -31,8 +31,8 @@ export default function MenuScreen() {
         <View style={[styles.inner, { maxWidth }]}>
           {/* app.js:267 */}
           <Text style={styles.lede}>
-            Every round gives you one piece of a presidency and asks for the other two. Questions
-            keep coming until you stop.
+            Every round gives you a piece of a presidency — a number, a name, a term or a face —
+            and asks for the rest. Questions keep coming until you stop.
           </Text>
 
           <Card style={styles.range}>

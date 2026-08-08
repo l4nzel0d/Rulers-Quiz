@@ -18,11 +18,47 @@ any code — Expo's APIs change between SDKs.
 ## Commands
 
 ```
-npm start          # dev server; scan the QR with Expo Go
-npm run web        # browser
-npm test           # 48 assertions over the grading logic, zero dependencies
-npx tsc --noEmit   # typecheck
+npm start                        # dev server; scan the QR with Expo Go
+npm run web                      # browser
+npm test                         # 63 assertions over the grading logic, zero dependencies
+npx tsc --noEmit                 # typecheck
+npx expo export --platform web   # static dist/ (~2MB)
+eas build --profile preview      # arm64-v8a APK; profiles live in eas.json
 ```
+
+`npm run lint` is wired to `expo lint`, but no ESLint config is committed — the first run
+prompts to create one.
+
+## How a quiz works
+
+One registry drives everything: `src/lib/fields.ts`. No mode is hardcoded in the screen.
+
+- `FieldKey = 'no' | 'name' | 'years'` — the three *typeable* things, and the only things that can
+  be an answer. `FIELDS[key]: FieldSpec` carries `label`, `placeholder`, `keyboardType`, `show(p)`
+  (render it as a prompt) and `check(p, v)` (grade it as an answer). UI and grading read from here.
+- `GivenKey = FieldKey | 'portrait'` — what a question can *show*. A portrait is shown but never
+  typed, which is exactly why it sits outside `FieldKey` and has no `FieldSpec`.
+- `ModeKey = GivenKey | 'mixed'` — **a mode names the prompt.** `pickGiven(mode)` resolves it
+  (`mixed` rerolls over `GIVENS` each question) and `answerFields(given)` returns `ORDER` minus
+  that field. A field prompt therefore asks two answers, and a portrait — filtering nothing —
+  asks all three.
+
+A round is `Question = { rec, given, answers }` (`src/lib/quiz.ts`), and `src/app/quiz/[mode].tsx`
+renders it generically: the inputs are `q.answers.map(...)` into `AnswerField`, which pulls its own
+label and keyboard from `FIELDS[f]`. The prompt is `FIELDS[q.given].show(q.rec)` for a field and
+`<PortraitPrompt>` for a portrait — the one place a mode is named in the screen. Adding a mode
+means extending the registry and `MODE_KEYS`: the menu tile follows automatically
+(`src/app/index.tsx` maps `MODE_KEYS`), and typed routes type the `mode` segment as a bare
+`string`, so the route needs no change either.
+
+`grade(q, inputs)` scores each candidate term as a unit and keeps the best-scoring one, so a
+Cleveland answer that mixes #22's number with #24's years is wrong. It returns `terms: President[]`
+and `RevealPanel` renders one row per term — the two-row Cleveland/Trump reveal is emergent, not
+special-cased.
+
+Session state (score, current question, inputs, result) lives in a `useReducer` inside the quiz
+screen and dies on unmount. The only persisted state is the president range: `RangeContext` over
+AsyncStorage under `usq.range`, plus a `?range=1-20` query param that overrides it.
 
 ## Things that will bite you
 
@@ -31,8 +67,31 @@ npx tsc --noEmit   # typecheck
   `ThemeProvider` value in `src/app/_layout.tsx` does.
 - **Import fonts per weight** (`@expo-google-fonts/gelasio/400Regular`), never from the package
   root: the barrel re-exports all eight faces and Metro bundles every one (~850KB).
-- **No TS parameter properties** in `src/lib/` — `node --experimental-strip-types` cannot parse
-  them, and that would break `npm test`.
+- **`src/lib/` may import RN types, never RN values.** `fields.ts` uses
+  `import type { KeyboardTypeOptions }`, which is erased before the test harness sees it.
+  `storage.ts` is the one real exception — it imports AsyncStorage for real, so it is the one lib
+  module `tests/grading.test.ts` cannot load.
+- **Only erasable TS syntax in `src/lib/`** — `node --experimental-strip-types` cannot parse
+  parameter properties, enums, namespaces or decorators, and any of them would break `npm test`.
+  `Deck` in `src/lib/quiz.ts` shows the workaround: declare the fields, assign in the body.
+- **`npm test` has no framework and no filter.** `tests/register.mjs` installs a resolver hook
+  that teaches Node the `@/*` alias and TypeScript's extensionless relative imports; the test file
+  is plain top-level `check(name, actual, expected)` calls compared via `JSON.stringify`. To run a
+  single case, comment out the rest — there is no `-t` flag.
+- **Two different `@` aliases.** `@/*` → `src/*` and `@/assets/*` → `assets/*` (tsconfig). The
+  test resolver only knows the first, so anything under `src/lib/` or `src/data/` that `require()`s
+  an asset breaks `npm test` the moment the suite transitively imports it. Keep asset maps in
+  `src/components/`.
+- **Images go through `expo-image` and a static `require()`.** Metro needs a literal path, so
+  `require('...' + n + '.jpg')` will not work — hence the 47 spelled-out lines in
+  `src/components/portraits.ts`. Three of them are not `.jpg` (`10.png`, `30.jpeg`, `43.jpeg`).
+- **An `expo-image` that swaps `source` needs a `recyclingKey`.** Without one the `transition`
+  cross-fades the *previous* portrait into the next question, showing the last answer under the
+  new prompt. See `src/components/PortraitPrompt.tsx`.
+- **The answer inputs are a focus chain of two *or three* fields.** Mixed alternates between them,
+  so `src/app/quiz/[mode].tsx` keys the return-key wiring off `q.answers.length - 1`, not off
+  index 1, and holds an array of refs that `nextQuestion` clears. The ref callback must have a
+  block body — React 19 reads a returned value as a cleanup function and throws.
 - **`RangePicker`'s twin-thumb slider is two fixes deep.** It is hand-built on `PanResponder`
   (core RN, so no extra dependency). Both of these are load-bearing: the responder must claim
   the gesture at *capture* phase and refuse `onPanResponderTerminationRequest`, or the enclosing

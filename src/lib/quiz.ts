@@ -1,5 +1,5 @@
 import { PRESIDENTS, type President } from '@/data/presidents';
-import { FIELDS, ORDER, type FieldKey, type ModeKey } from './fields';
+import { FIELDS, GIVENS, ORDER, type FieldKey, type GivenKey, type ModeKey } from './fields';
 
 export function shuffle<T>(list: T[]): T[] {
   const a = list.slice();
@@ -11,25 +11,28 @@ export function shuffle<T>(list: T[]): T[] {
 }
 
 /* Cleveland and Trump each hold two presidency numbers. When the name is the
- * prompt, either term is a valid answer. */
-export function candidates(rec: President, given: FieldKey): President[] {
+ * prompt, either term is a valid answer — the name alone cannot distinguish
+ * them. A portrait can: each term has its own photograph, so it grades against
+ * that term only, like the number and years prompts. */
+export function candidates(rec: President, given: GivenKey): President[] {
   if (given !== 'name') return [rec];
   return PRESIDENTS.filter((p) => p.name === rec.name);
 }
 
-/** Which field to show as the prompt for a question in this mode. */
-export function pickGiven(mode: ModeKey): FieldKey {
-  return mode === 'mixed' ? ORDER[Math.floor(Math.random() * ORDER.length)] : mode;
+/** What to show as the prompt for a question in this mode. */
+export function pickGiven(mode: ModeKey): GivenKey {
+  return mode === 'mixed' ? GIVENS[Math.floor(Math.random() * GIVENS.length)] : mode;
 }
 
-/** The two fields the player has to type, given the one on show. */
-export function answerFields(given: FieldKey): FieldKey[] {
+/** The fields the player has to type, given the one on show. Two for a field
+ *  prompt; all three for a portrait, which is not itself a field. */
+export function answerFields(given: GivenKey): FieldKey[] {
   return ORDER.filter((f) => f !== given);
 }
 
 export type Question = {
   rec: President;
-  given: FieldKey;
+  given: GivenKey;
   answers: FieldKey[];
 };
 

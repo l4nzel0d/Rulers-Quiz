@@ -4,7 +4,10 @@ import type { President } from '@/data/presidents';
 import { dropSuffix, nameKeys, norm, yearKeys, yearsText } from './answers';
 
 export type FieldKey = 'no' | 'name' | 'years';
-export type ModeKey = FieldKey | 'mixed';
+/* What a question can show. Every field can be the prompt, and so can a
+ * portrait — which is why this is wider than FieldKey. */
+export type GivenKey = FieldKey | 'portrait';
+export type ModeKey = GivenKey | 'mixed';
 
 export type FieldSpec = {
   label: string;
@@ -43,16 +46,26 @@ export const FIELDS: Record<FieldKey, FieldSpec> = {
   },
 };
 
+/** The fields a question can ask for. A portrait asks for all three. */
 export const ORDER: FieldKey[] = ['no', 'name', 'years'];
+
+/** Everything a question can show. What `mixed` rolls between. */
+export const GIVENS: GivenKey[] = ['no', 'name', 'years', 'portrait'];
+
+/** The prompt heading. A portrait has no FieldSpec of its own. */
+export function givenLabel(given: GivenKey): string {
+  return given === 'portrait' ? 'Portrait' : FIELDS[given].label;
+}
 
 export const MODES: Record<ModeKey, { title: string; blurb: string }> = {
   no: { title: 'Given the number', blurb: 'Every question shows a presidency number.' },
   name: { title: 'Given the name', blurb: 'Every question shows a full name.' },
   years: { title: 'Given the years', blurb: 'Every question shows a term.' },
+  portrait: { title: 'Given the portrait', blurb: 'A photograph, and all three answers.' },
   mixed: { title: 'Mixed', blurb: 'The given piece changes each question.' },
 };
 
-export const MODE_KEYS: ModeKey[] = ['no', 'name', 'years', 'mixed'];
+export const MODE_KEYS: ModeKey[] = ['no', 'name', 'years', 'portrait', 'mixed'];
 
 export function isModeKey(v: string | undefined): v is ModeKey {
   return v !== undefined && (MODE_KEYS as string[]).includes(v);

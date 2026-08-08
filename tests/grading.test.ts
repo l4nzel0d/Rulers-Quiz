@@ -1,8 +1,8 @@
 import { PRESIDENTS } from '@/data/presidents';
-import { FIELDS } from '@/lib/fields';
-import { Deck, answerFields, grade, type Question } from '@/lib/quiz';
+import { FIELDS, GIVENS, MODES, MODE_KEYS, isModeKey } from '@/lib/fields';
+import { Deck, answerFields, grade, pickGiven, type Question } from '@/lib/quiz';
 import { NO_MAX, NO_MIN, makeRange, parseRange, pool, rangeText } from '@/lib/range';
-import type { FieldKey } from '@/lib/fields';
+import type { GivenKey } from '@/lib/fields';
 
 let pass = 0;
 const failures: string[] = [];
@@ -17,7 +17,7 @@ function check(name: string, actual: unknown, expected: unknown) {
 const byNo = (n: number) => PRESIDENTS.find((p) => p.no === n)!;
 
 /** Build a question and grade a submitted answer. */
-function ask(no: number, given: FieldKey, inputs: Record<string, string>) {
+function ask(no: number, given: GivenKey, inputs: Record<string, string>) {
   const q: Question = { rec: byNo(no), given, answers: answerFields(given) };
   return grade(q, inputs);
 }
@@ -139,6 +139,81 @@ check('partial marks', ask(16, 'no', { name: 'Abraham Lincoln', years: '' }).mar
 check('answers for no', answerFields('no'), ['name', 'years']);
 check('answers for name', answerFields('name'), ['no', 'years']);
 check('answers for years', answerFields('years'), ['no', 'name']);
+// A portrait is not a field, so nothing is filtered out and all three are asked.
+check('answers for portrait', answerFields('portrait'), ['no', 'name', 'years']);
+
+// ---- portrait: one photo per number, all three fields typed ---------------
+check(
+  'portrait all three right',
+  ask(16, 'portrait', { no: '16', name: 'Abraham Lincoln', years: '1861-1865' }).allRight,
+  true
+);
+check(
+  'portrait needs the number too',
+  ask(16, 'portrait', { no: '', name: 'Abraham Lincoln', years: '1861-1865' }).allRight,
+  false
+);
+check('portrait marks all three', ask(16, 'portrait', { no: '16', years: '1861-1865' }).marks, {
+  no: true,
+  name: false,
+  years: true,
+});
+
+// Each term has its own photograph, so unlike the name prompt the portrait
+// pins the answer to one presidency number.
+check(
+  'Cleveland portrait #22 accepts its own term',
+  ask(22, 'portrait', { no: '22', name: 'Stephen Grover Cleveland', years: '1885-1889' }).allRight,
+  true
+);
+check(
+  'Cleveland portrait #22 rejects the #24 term',
+  ask(22, 'portrait', { no: '24', name: 'Stephen Grover Cleveland', years: '1893-1897' }).allRight,
+  false
+);
+check(
+  'portrait reveals exactly one term',
+  ask(22, 'portrait', { no: '22', name: 'Stephen Grover Cleveland', years: '1885-1889' }).terms.map(
+    (p) => p.no
+  ),
+  [22]
+);
+check(
+  'Trump portrait #47 rejects the #45 term',
+  ask(47, 'portrait', { no: '45', name: 'Donald John Trump', years: '2017-2021' }).allRight,
+  false
+);
+check(
+  'Trump portrait #47 takes the ongoing term',
+  ask(47, 'portrait', { no: '47', name: 'Donald John Trump', years: '2025-present' }).allRight,
+  true
+);
+// Birth names still work when the face is the prompt.
+check(
+  'portrait accepts a birth name',
+  ask(18, 'portrait', { no: '18', name: 'Hiram Ulysses Grant', years: '1869-1877' }).allRight,
+  true
+);
+
+// ---- modes ----------------------------------------------------------------
+check('five modes', MODE_KEYS.length, 5);
+check('portrait is a mode', isModeKey('portrait'), true);
+check(
+  'every mode has copy',
+  MODE_KEYS.every((k) => Boolean(MODES[k].title && MODES[k].blurb)),
+  true
+);
+check(
+  'fixed modes show themselves',
+  MODE_KEYS.filter((m) => m !== 'mixed').map((m) => pickGiven(m)),
+  ['no', 'name', 'years', 'portrait']
+);
+// Mixed rolls portraits too, so its questions vary between two and three fields.
+check(
+  'mixed draws from every given',
+  GIVENS.every((g) => Array.from({ length: 400 }, () => pickGiven('mixed')).includes(g)),
+  true
+);
 
 // ---- report ---------------------------------------------------------------
 console.log(`\n  ${pass} passed, ${failures.length} failed\n`);
