@@ -88,6 +88,11 @@ AsyncStorage under `usq.range`, plus a `?range=1-20` query param that overrides 
 - **An `expo-image` that swaps `source` needs a `recyclingKey`.** Without one the `transition`
   cross-fades the *previous* portrait into the next question, showing the last answer under the
   new prompt. See `src/components/PortraitPrompt.tsx`.
+- **Neither platform scrolls a focused input into view.** Android resizes the window, iOS pads via
+  `KeyboardAvoidingView`, but nothing brings the focused field above the keyboard. In portrait mode
+  the photo plus three fields is tall enough that the last field sits under it and has to be
+  scrolled to by hand. Known and currently accepted; fixing it means either shrinking the prompt
+  while typing, scrolling on focus, or `react-native-keyboard-controller`.
 - **The answer inputs are a focus chain of two *or three* fields.** Mixed alternates between them,
   so `src/app/quiz/[mode].tsx` keys the return-key wiring off `q.answers.length - 1`, not off
   index 1, and holds an array of refs that `nextQuestion` clears. The ref callback must have a

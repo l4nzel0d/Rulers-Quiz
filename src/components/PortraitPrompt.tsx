@@ -7,9 +7,10 @@ import { colors, radius } from '@/theme';
 /* The portrait prompt. Sits where the given value's <Text> sits in the other
  * modes, so it carries the card's rhythm rather than the type scale.
  *
- * The sources are mostly ~960x1280, but not all of them, so this frames a 3:4
- * box and uses contentFit="contain" — cropping to fill would take the top off
- * the odd ones. Tan shows through wherever a source does not match the box. */
+ * A centred 3:4 frame, filled rather than fitted: the sources' aspects run
+ * 0.72-0.80, so contentFit="cover" crops the few percent of overhang instead of
+ * letterboxing it. The crop is pinned to the top because these are portraits —
+ * the face sits high in every one, and a centred crop would cut foreheads. */
 export function PortraitPrompt({ no }: { no: number }) {
   const { height } = useWindowDimensions();
   const source = PORTRAITS[no];
@@ -24,7 +25,8 @@ export function PortraitPrompt({ no }: { no: number }) {
         <Image
           source={source}
           style={StyleSheet.absoluteFill}
-          contentFit="contain"
+          contentFit="cover"
+          contentPosition="top center"
           cachePolicy="memory-disk"
           transition={120}
           /* Without this the fade runs between two presidents, so the previous
