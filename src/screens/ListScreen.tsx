@@ -5,23 +5,28 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppBar } from '@/components/AppBar';
 import { surface } from '@/components/Card';
 import { TextLink } from '@/components/TextLink';
-import { PRESIDENTS } from '@/data/presidents';
 import { yearsText } from '@/lib/answers';
+import { showsNumber } from '@/lib/domain';
+import { useDomain } from '@/state/DomainContext';
 import { cardShadow, colors, type, useLayout } from '@/theme';
 
-const PEOPLE = new Set(PRESIDENTS.map((p) => p.name)).size;
-
-export default function ListScreen() {
+export function ListScreen() {
+  const domain = useDomain();
   const insets = useSafeAreaInsets();
   const { wide, maxWidth, gutter } = useLayout();
+
+  const records = domain.records;
+  const people = new Set(records.map((r) => r.name)).size;
+  const withNumber = showsNumber(domain);
+  const home = domain.key === 'us' ? '/us' : '/ru';
 
   return (
     <View style={styles.root}>
       <AppBar />
 
-      {/* A plain ScrollView rather than a FlatList: 47 rows is nothing to
-          render, and it lets the whole list sit inside one .rows card with the
-          rounded corners clipping the striping, as the web build does. */}
+      {/* A plain ScrollView rather than a FlatList: a few dozen rows is nothing
+          to render, and it lets the whole list sit inside one .rows card with
+          the rounded corners clipping the striping, as the web build does. */}
       <ScrollView
         contentContainerStyle={[
           styles.content,
@@ -30,15 +35,12 @@ export default function ListScreen() {
         showsVerticalScrollIndicator={false}>
         <View style={[styles.inner, { maxWidth }]}>
           {/* app.js:305 */}
-          <Text style={styles.lede}>
-            {PRESIDENTS.length} terms, {PEOPLE} people. Cleveland and Trump each appear twice —
-            nonconsecutive terms get separate numbers.
-          </Text>
+          <Text style={styles.lede}>{domain.strings.listLede(records.length, people)}</Text>
 
           <View style={styles.rows}>
-            {PRESIDENTS.map((p, i) => (
+            {records.map((r, i) => (
               <View
-                key={p.no}
+                key={r.no}
                 style={[
                   styles.row,
                   wide && styles.rowWide,
@@ -46,17 +48,30 @@ export default function ListScreen() {
                   // .row:nth-child(even) — styles.css:369
                   i % 2 === 1 && styles.rowAlt,
                 ]}>
-                <Text style={styles.no}>{p.no}</Text>
+                {withNumber ? (
+                  <Text style={[styles.no, { color: domain.accent }]}>{r.no}</Text>
+                ) : null}
                 <View style={styles.name}>
-                  <Text style={styles.nameText}>{p.name}</Text>
-                  {p.givenName ? <Text style={styles.given}>born {p.givenName}</Text> : null}
+                  <Text style={styles.nameText}>{r.name}</Text>
+                  {r.givenName ? (
+                    <Text style={styles.given}>
+                      {domain.strings.bornPrefix} {r.givenName}
+                    </Text>
+                  ) : null}
                 </View>
-                <Text style={[styles.years, wide && styles.yearsWide]}>{yearsText(p)}</Text>
+                <Text
+                  style={[
+                    styles.years,
+                    !withNumber && styles.yearsFlush,
+                    wide && styles.yearsWide,
+                  ]}>
+                  {yearsText(r, domain.strings.present)}
+                </Text>
               </View>
             ))}
           </View>
 
-          <TextLink label="← Back to modes" onPress={() => router.navigate('/')} />
+          <TextLink label={domain.strings.back} onPress={() => router.navigate(home)} />
         </View>
       </ScrollView>
     </View>
@@ -86,7 +101,7 @@ const styles = StyleSheet.create({
   rowRule: { borderTopWidth: 1, borderTopColor: colors.lineSolid },
   rowAlt: { backgroundColor: colors.rowAlt },
 
-  no: { width: 38, fontSize: 16, fontWeight: '700', color: colors.brick, fontVariant: ['tabular-nums'] },
+  no: { width: 38, fontSize: 16, fontWeight: '700', fontVariant: ['tabular-nums'] },
   name: { flexGrow: 1, flexShrink: 1, flexBasis: 'auto', minWidth: 0 },
   nameText: { fontSize: 16, fontWeight: '600', color: colors.ink },
   given: { fontSize: 14, fontStyle: 'italic', color: colors.brown },
@@ -98,5 +113,7 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontVariant: ['tabular-nums'],
   },
+  // No number column to clear, so the second line starts at the text edge.
+  yearsFlush: { marginLeft: 0 },
   yearsWide: { width: 'auto', marginLeft: 0 },
 });

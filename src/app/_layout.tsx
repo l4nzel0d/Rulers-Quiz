@@ -11,8 +11,6 @@ import { StyleSheet, View } from 'react-native';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { Background } from '@/components/Background';
-import { RangeProvider, useRange } from '@/state/RangeContext';
 import { colors } from '@/theme';
 
 SplashScreen.preventAutoHideAsync();
@@ -25,13 +23,12 @@ const transparentTheme = {
   colors: { ...DefaultTheme.colors, background: 'transparent' },
 };
 
-/** Holds the splash until both the bundled serif and the stored range are ready,
- *  so nothing ever renders with the wrong range or a fallback font. */
-function Shell() {
-  const { hydrated } = useRange();
+/** Holds the splash until the bundled serif is ready, so nothing renders in a
+ *  fallback font. The stored range is gated one level down, in each domain's
+ *  RangeProvider — the root sits above both domains and has no range of its own. */
+export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({ Gelasio_400Regular, Gelasio_700Bold });
-
-  const ready = hydrated && (fontsLoaded || !!fontError);
+  const ready = fontsLoaded || !!fontError;
 
   useEffect(() => {
     if (ready) SplashScreen.hideAsync();
@@ -40,33 +37,24 @@ function Shell() {
   if (!ready) return null;
 
   return (
-    <View style={styles.root}>
-      <Background />
-      <StatusBar style="dark" />
-      <ThemeProvider value={transparentTheme}>
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: 'transparent' },
-            animation: 'slide_from_right',
-          }}
-        />
-      </ThemeProvider>
-    </View>
-  );
-}
-
-export default function RootLayout() {
-  return (
     <SafeAreaProvider>
       {/* Feeds the quiz screen's KeyboardAwareScrollView. Android draws
        * edge-to-edge and no longer resizes for the keyboard, so nothing else
        * lifts a focused field above it. Native-only: on web the library's
        * bindings are no-ops and this is an empty wrapper. */}
       <KeyboardProvider>
-        <RangeProvider>
-          <Shell />
-        </RangeProvider>
+        <View style={styles.root}>
+          <StatusBar style="dark" />
+          <ThemeProvider value={transparentTheme}>
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: 'transparent' },
+                animation: 'slide_from_right',
+              }}
+            />
+          </ThemeProvider>
+        </View>
       </KeyboardProvider>
     </SafeAreaProvider>
   );

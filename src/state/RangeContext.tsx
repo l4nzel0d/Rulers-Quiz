@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 
-import { FULL_RANGE, type Range } from '@/lib/range';
+import type { Domain } from '@/lib/domain';
+import { bounds, type Range } from '@/lib/range';
 import { loadRange, saveRange } from '@/lib/storage';
 
 type RangeContextValue = {
@@ -12,13 +13,15 @@ type RangeContextValue = {
 
 const RangeContext = createContext<RangeContextValue | null>(null);
 
-export function RangeProvider({ children }: { children: ReactNode }) {
-  const [range, setRangeState] = useState<Range>(FULL_RANGE);
+/** Mounted per domain, so the two never share a stored range — the same span of
+ *  `no` means different centuries on either side. */
+export function RangeProvider({ domain, children }: { domain: Domain; children: ReactNode }) {
+  const [range, setRangeState] = useState<Range>(() => bounds(domain));
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    loadRange().then((r) => {
+    loadRange(domain).then((r) => {
       if (cancelled) return;
       setRangeState(r);
       setHydrated(true);
@@ -26,13 +29,21 @@ export function RangeProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [domain]);
 
   // Write-through: state updates immediately, storage catches up.
-  const setRange = useCallback((r: Range) => {
-    setRangeState(r);
-    void saveRange(r);
-  }, []);
+  const setRange = useCallback(
+    (r: Range) => {
+      setRangeState(r);
+      void saveRange(domain, r);
+    },
+    [domain]
+  );
+
+  // Nothing renders against the wrong range: the subtree waits for the stored
+  // one. The domain layout paints its background outside this provider, so the
+  // wait shows the domain's own ground rather than a blank frame.
+  if (!hydrated) return null;
 
   return (
     <RangeContext.Provider value={{ range, setRange, hydrated }}>{children}</RangeContext.Provider>

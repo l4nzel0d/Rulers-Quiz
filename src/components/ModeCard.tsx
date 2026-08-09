@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
 
 import { surface } from '@/components/Card';
+import { useAccent } from '@/state/DomainContext';
 import { cardShadow, colors, fonts } from '@/theme';
 
 /** .mode — styles.css:148. A stacked title and blurb, no chevron: the whole
@@ -14,13 +15,14 @@ export function ModeCard({
   blurb: string;
   onPress: () => void;
 }) {
+  const accent = useAccent();
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`${title}. ${blurb}`}
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
-      <Text style={styles.title}>{title}</Text>
+      style={({ pressed }) => [styles.card, pressed && [styles.pressed, { borderColor: accent }]]}>
+      <Text style={[styles.title, { color: accent }]}>{title}</Text>
       <Text style={styles.blurb}>{blurb}</Text>
     </Pressable>
   );

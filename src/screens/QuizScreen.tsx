@@ -20,9 +20,10 @@ import { Card } from '@/components/Card';
 import { PortraitPrompt } from '@/components/PortraitPrompt';
 import { RevealPanel } from '@/components/RevealPanel';
 import { TextLink } from '@/components/TextLink';
-import { FIELDS, MODES, givenLabel, isModeKey, type FieldKey } from '@/lib/fields';
-import { parseRange, pool, rangeText, type Range } from '@/lib/range';
+import { givenLabel, isModeKey, type FieldKey } from '@/lib/domain';
+import { parseRangeIn, pool, rangeText, type Range } from '@/lib/range';
 import { Deck, answerFields, grade, pickGiven, type Grade, type Question } from '@/lib/quiz';
+import { useDomain } from '@/state/DomainContext';
 import { useRange } from '@/state/RangeContext';
 import { colors, fonts, type, useLayout } from '@/theme';
 
@@ -68,7 +69,8 @@ function reducer(state: State, action: Action): State {
   }
 }
 
-export default function QuizScreen() {
+export function QuizScreen() {
+  const domain = useDomain();
   const params = useLocalSearchParams<{ mode: string; range?: string }>();
   const { range: storedRange } = useRange();
   const insets = useSafeAreaInsets();
@@ -76,28 +78,29 @@ export default function QuizScreen() {
   const { wide, maxWidth, gutter } = useLayout();
 
   // The route may carry a range (web deep links keep a round shareable);
-  // otherwise fall back to the persisted choice.
+  // otherwise fall back to the persisted choice. Clamped on the way in, so a
+  // hand-edited URL cannot select an empty pool.
   const activeRange: Range = useMemo(
-    () => parseRange(params.range) ?? storedRange,
-    [params.range, storedRange]
+    () => parseRangeIn(domain, params.range) ?? storedRange,
+    [domain, params.range, storedRange]
   );
 
   const [state, dispatch] = useReducer(reducer, initialState);
   const deckRef = useRef<Deck | null>(null);
   /* One slot per answer field, so the return key can walk the whole chain.
-   * Mixed alternates between two and three fields, hence an array. */
+   * Mixed alternates between counts, hence an array. */
   const inputRefs = useRef<(TextInput | null)[]>([]);
   const nextButtonRef = useRef<View | null>(null);
 
-  const picks = useMemo(() => pool(activeRange), [activeRange]);
+  const picks = useMemo(() => pool(domain, activeRange), [domain, activeRange]);
 
   const nextQuestion = useCallback(() => {
     if (!deckRef.current) return;
     const rec = deckRef.current.draw();
-    const given = pickGiven(isModeKey(params.mode) ? params.mode : 'mixed');
+    const given = pickGiven(domain, isModeKey(domain, params.mode) ? params.mode : 'mixed');
     inputRefs.current = [];
-    dispatch({ kind: 'next', q: { rec, given, answers: answerFields(given) } });
-  }, [params.mode]);
+    dispatch({ kind: 'next', q: { rec, given, answers: answerFields(domain, given) } });
+  }, [domain, params.mode]);
 
   // Build the deck and ask the first question; rebuild if the range changes.
   useEffect(() => {
@@ -117,7 +120,7 @@ export default function QuizScreen() {
 
   const onGrade = useCallback(() => {
     if (!state.q || state.result) return;
-    const result = grade(state.q, state.inputs);
+    const result = grade(domain, state.q, state.inputs);
     Keyboard.dismiss();
     void Haptics.notificationAsync(
       result.allRight
@@ -125,9 +128,11 @@ export default function QuizScreen() {
         : Haptics.NotificationFeedbackType.Warning
     );
     dispatch({ kind: 'grade', result });
-  }, [state.q, state.inputs, state.result]);
+  }, [domain, state.q, state.inputs, state.result]);
 
-  if (!isModeKey(params.mode)) return <Redirect href="/" />;
+  if (!isModeKey(domain, params.mode)) {
+    return <Redirect href={domain.key === 'us' ? '/us' : '/ru'} />;
+  }
 
   const mode = params.mode;
   const q = state.q;
@@ -141,7 +146,7 @@ export default function QuizScreen() {
 
       {/* Replaces a KeyboardAvoidingView that was inert on Android: under
        * edge-to-edge the window no longer resizes for the keyboard, so the last
-       * of a portrait question's three fields sat underneath it. This both
+       * of a portrait question's answer fields sat underneath it. This both
        * makes room and scrolls the focused field into it. */}
       <KeyboardAwareScrollView
         style={styles.flex}
@@ -155,24 +160,25 @@ export default function QuizScreen() {
         <View style={[styles.inner, { maxWidth }]}>
           {/* .mode-tag — app.js:341. The separator dot is tan, the range stone. */}
           <Text style={styles.modeTag}>
-            {MODES[mode].title}
+            {domain.modes[mode].title}
             <Text style={styles.tagDot}> · </Text>
-            <Text style={styles.tagRange}>{rangeText(activeRange)}</Text>
+            <Text style={styles.tagRange}>{rangeText(domain, activeRange)}</Text>
           </Text>
 
           {q ? (
             <Card style={[styles.card, wide && styles.cardWide]}>
-              <Text style={styles.givenLabel}>{givenLabel(q.given)}</Text>
+              <Text style={styles.givenLabel}>{givenLabel(domain, q.given)}</Text>
               {q.given === 'portrait' ? (
-                <PortraitPrompt no={q.rec.no} />
+                <PortraitPrompt domain={domain} no={q.rec.no} />
               ) : (
                 <Text
                   style={[
                     styles.givenValue,
                     { fontSize: givenFontSize, lineHeight: givenFontSize * 1.15 },
+                    q.given !== 'name' && { color: domain.accent },
                     q.given !== 'name' && styles.givenNumeric,
                   ]}>
-                  {FIELDS[q.given].show(q.rec)}
+                  {domain.fields[q.given].show(q.rec)}
                 </Text>
               )}
 
@@ -187,7 +193,7 @@ export default function QuizScreen() {
                       ref={(el) => {
                         inputRefs.current[i] = el;
                       }}
-                      field={f}
+                      spec={domain.fields[f]}
                       value={state.inputs[f] ?? ''}
                       onChangeText={(v) => dispatch({ kind: 'input', field: f, value: v })}
                       mark={state.result ? (state.result.marks[f] ?? false) : null}
@@ -201,9 +207,7 @@ export default function QuizScreen() {
                         (Platform.OS === 'web' || q.given !== 'portrait')
                       }
                       returnKeyType={last ? 'done' : 'next'}
-                      onSubmitEditing={
-                        last ? onGrade : () => inputRefs.current[i + 1]?.focus()
-                      }
+                      onSubmitEditing={last ? onGrade : () => inputRefs.current[i + 1]?.focus()}
                     />
                   );
                 })}
@@ -211,6 +215,7 @@ export default function QuizScreen() {
 
               {state.result ? (
                 <RevealPanel
+                  domain={domain}
                   allRight={state.result.allRight}
                   terms={state.result.terms}
                   givenName={q.rec.givenName}
@@ -223,26 +228,31 @@ export default function QuizScreen() {
                 {state.result ? (
                   <Button
                     ref={nextButtonRef}
-                    label="Next question"
+                    label={domain.strings.next}
                     onPress={nextQuestion}
                     style={wide && styles.buttonWide}
                   />
                 ) : (
-                  <Button label="Check" onPress={onGrade} style={wide && styles.buttonWide} />
+                  <Button
+                    label={domain.strings.check}
+                    onPress={onGrade}
+                    style={wide && styles.buttonWide}
+                  />
                 )}
               </View>
             </Card>
           ) : (
             <Card style={styles.card}>
-              <Text style={type.body}>No presidents in this range.</Text>
+              <Text style={type.body}>{domain.strings.emptyPool}</Text>
             </Card>
           )}
 
-          <Text style={styles.hint}>
-            Full names only — birth names accepted where they differ.
-          </Text>
+          <Text style={styles.hint}>{domain.strings.hint}</Text>
 
-          <TextLink label="← Back to modes" onPress={() => router.navigate('/')} />
+          <TextLink
+            label={domain.strings.back}
+            onPress={() => router.navigate(domain.key === 'us' ? '/us' : '/ru')}
+          />
         </View>
       </KeyboardAwareScrollView>
     </View>
@@ -271,7 +281,7 @@ const styles = StyleSheet.create({
     // -0.9rem top margin against the card's 1.25rem gap (styles.css:418).
     marginTop: -14,
   },
-  givenNumeric: { color: colors.brick, fontVariant: ['tabular-nums'] },
+  givenNumeric: { fontVariant: ['tabular-nums'] },
 
   fields: { gap: 14 },
   actions: { flexDirection: 'row' },

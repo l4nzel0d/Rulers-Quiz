@@ -3,23 +3,43 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppBar } from '@/components/AppBar';
-import { Card } from '@/components/Card';
+import { Background } from '@/components/Background';
 import { ModeCard } from '@/components/ModeCard';
-import { RangePicker } from '@/components/RangePicker';
-import { TextLink } from '@/components/TextLink';
-import { PRESIDENTS } from '@/data/presidents';
-import { MODES, MODE_KEYS } from '@/lib/fields';
-import { rangeSlug } from '@/lib/range';
-import { useRange } from '@/state/RangeContext';
+import { RU_CORE } from '@/domains/ru-core';
+import { US_CORE } from '@/domains/us-core';
 import { type, useLayout } from '@/theme';
 
-export default function MenuScreen() {
-  const { range, setRange } = useRange();
+/* The chooser. It sits above both domains, so there is no DomainProvider here —
+ * AppBar and ModeCard fall back to the app's own name and accent. The cores are
+ * enough for a title and a count; the asset-bearing modules stay unimported
+ * until you pick a side, which keeps the other domain's images out of the
+ * first bundle the player loads. */
+
+const DOMAINS = [
+  {
+    key: 'us' as const,
+    href: '/us' as const,
+    title: US_CORE.brand,
+    blurb: `${US_CORE.records.length} terms, from George Washington to today.`,
+  },
+  {
+    key: 'ru' as const,
+    href: '/ru' as const,
+    title: RU_CORE.brand,
+    // Through the domain's own pluraliser: "31 правитель", not "31 правлений".
+    blurb: `${RU_CORE.strings.count(RU_CORE.records.length)} — Романовы, советский период, современная Россия.`,
+  },
+];
+
+export default function ChooserScreen() {
   const insets = useSafeAreaInsets();
   const { wide, maxWidth, gutter } = useLayout();
 
   return (
     <View style={styles.root}>
+      {/* The chooser sits above both domains, so it carries its own ground
+       * rather than inheriting one. */}
+      <Background source={require('@/assets/images/background.jpg')} />
       <AppBar />
 
       <ScrollView
@@ -29,38 +49,18 @@ export default function MenuScreen() {
         ]}
         showsVerticalScrollIndicator={false}>
         <View style={[styles.inner, { maxWidth }]}>
-          {/* app.js:267 */}
           <Text style={styles.lede}>
-            Every round gives you a piece of a presidency — a number, a name, a term or a face —
-            and asks for the rest. Questions keep coming until you stop.
+            Two sets of rulers, one quiz. Pick a side — each keeps its own range and its own
+            score.
           </Text>
 
-          <Card style={styles.range}>
-            <RangePicker range={range} onChange={setRange} />
-          </Card>
-
-          {/* .modes — one column, two past the 40rem breakpoint (styles.css:583). */}
-          <View style={[styles.modes, wide && styles.modesWide]}>
-            {MODE_KEYS.map((key) => (
-              <View key={key} style={wide ? styles.modeHalf : undefined}>
-                <ModeCard
-                  title={MODES[key].title}
-                  blurb={MODES[key].blurb}
-                  onPress={() =>
-                    router.push({
-                      pathname: '/quiz/[mode]',
-                      params: { mode: key, range: rangeSlug(range) },
-                    })
-                  }
-                />
+          <View style={[styles.domains, wide && styles.domainsWide]}>
+            {DOMAINS.map((d) => (
+              <View key={d.key} style={wide ? styles.half : undefined}>
+                <ModeCard title={d.title} blurb={d.blurb} onPress={() => router.push(d.href)} />
               </View>
             ))}
           </View>
-
-          <TextLink
-            label={`Browse all ${PRESIDENTS.length} terms →`}
-            onPress={() => router.push('/list')}
-          />
         </View>
       </ScrollView>
     </View>
@@ -72,9 +72,7 @@ const styles = StyleSheet.create({
   content: { alignItems: 'center', paddingTop: 16 },
   inner: { width: '100%', gap: 16 },
   lede: type.lede,
-  range: { paddingTop: 16, paddingBottom: 18, paddingHorizontal: 18 },
-  modes: { gap: 11 },
-  modesWide: { flexDirection: 'row', flexWrap: 'wrap' },
-  // Two per row with the 11px gap accounted for.
-  modeHalf: { width: '50%', flexGrow: 1, flexBasis: 0, minWidth: 240 },
+  domains: { gap: 11 },
+  domainsWide: { flexDirection: 'row', flexWrap: 'wrap' },
+  half: { width: '50%', flexGrow: 1, flexBasis: 0, minWidth: 240 },
 });

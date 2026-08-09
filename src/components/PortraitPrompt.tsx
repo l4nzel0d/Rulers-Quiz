@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
 
-import { PORTRAITS } from '@/components/portraits';
+import type { Domain } from '@/lib/domain';
 import { colors, radius } from '@/theme';
 
 /* The portrait prompt. Sits where the given value's <Text> sits in the other
@@ -11,9 +11,11 @@ import { colors, radius } from '@/theme';
  * 0.72-0.80, so contentFit="cover" crops the few percent of overhang instead of
  * letterboxing it. The crop is pinned to the top because these are portraits —
  * the face sits high in every one, and a centred crop would cut foreheads. */
-export function PortraitPrompt({ no }: { no: number }) {
+export function PortraitPrompt({ domain, no }: { domain: Domain; no: number }) {
   const { height } = useWindowDimensions();
-  const source = PORTRAITS[no];
+  // A domain whose portraits have not been sourced yet renders the empty frame
+  // rather than crashing, so the mode is wired up before the images land.
+  const source = domain.portraits[no];
 
   // Roughly a third of the screen: big enough to read a face, small enough to
   // leave all three fields and the Check button above the fold.
@@ -34,9 +36,9 @@ export function PortraitPrompt({ no }: { no: number }) {
           recyclingKey={String(no)}
           accessible
           accessibilityRole="image"
-          /* Deliberately not the president's name — on web the label becomes an
-           * alt attribute, which would hand over the answer. */
-          accessibilityLabel="Portrait of a US president"
+          /* Deliberately not the ruler's name — on web the label becomes an alt
+           * attribute, which would hand over the answer. */
+          accessibilityLabel={domain.strings.portrait}
         />
       ) : null}
     </View>

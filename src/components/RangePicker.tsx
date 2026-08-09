@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   PanResponder,
   Platform,
@@ -9,10 +9,9 @@ import {
   type LayoutChangeEvent,
 } from 'react-native';
 
+import type { Domain } from '@/lib/domain';
 import {
-  NO_MAX,
-  NO_MIN,
-  PRESETS,
+  bounds,
   clampNo,
   makeRange,
   pool,
@@ -31,16 +30,20 @@ import { colors, fonts, radius, type } from '@/theme';
  * which thumb it is moving on touch-down. That is what makes the web build's
  * z-index hack (app.js:220-222) unnecessary: when both thumbs sit on the same
  * number, the touch position alone says which one the user meant, because a
- * touch outside the selected band always grabs the bound on that side. */
+ * touch outside the selected band always grabs the bound on that side.
+ *
+ * The slider is optional. A domain that never shows its `no` sets slider:false
+ * and the chips become the whole control: an arbitrary numeric span means
+ * nothing to a player who is never told the numbers. */
 
 const THUMB = 22; // 1.35rem
-const SPAN = NO_MAX - NO_MIN;
 
 type Bound = 'lo' | 'hi';
 
 /** Mutable state the pan handlers read. They are created once, so they cannot
  *  close over props — see the effect below that keeps this current. */
 type Live = {
+  domain: Domain;
   range: Range;
   onChange: (r: Range) => void;
   width: number;
@@ -49,17 +52,22 @@ type Live = {
 };
 
 export function RangePicker({
+  domain,
   range,
   onChange,
 }: {
+  domain: Domain;
   range: Range;
   onChange: (r: Range) => void;
 }) {
   const [width, setWidth] = useState(0);
   const [active, setActive] = useState<Bound | null>(null);
 
-  const live = useRef<Live>({ range, onChange, width: 0, bound: 'lo', from: NO_MIN });
+  const span = useMemo(() => bounds(domain), [domain]);
+
+  const live = useRef<Live>({ domain, range, onChange, width: 0, bound: 'lo', from: span.lo });
   useEffect(() => {
+    live.current.domain = domain;
     live.current.range = range;
     live.current.onChange = onChange;
   });
@@ -80,7 +88,7 @@ export function RangePicker({
       onShouldBlockNativeResponder: () => true,
       onPanResponderGrant: (e) => {
         const s = live.current;
-        const v = valueAt(e.nativeEvent.locationX, s.width);
+        const v = valueAt(s.domain, e.nativeEvent.locationX, s.width);
         s.bound = nearestBound(v, s.range);
         s.from = v;
         setActive(s.bound);
@@ -88,67 +96,80 @@ export function RangePicker({
       },
       onPanResponderMove: (_e, g) => {
         const s = live.current;
-        apply(s, clampNo(s.from + Math.round((g.dx / usable(s.width)) * SPAN)));
+        const total = spanOf(s.domain);
+        apply(s, clampNo(s.domain, s.from + Math.round((g.dx / usable(s.width)) * total)));
       },
       onPanResponderRelease: () => setActive(null),
       onPanResponderTerminate: () => setActive(null),
-    }),
+    })
   );
 
-  const list = pool(range);
+  const { strings, accent } = domain;
+  const list = pool(domain, range);
   const first = list[0];
   const last = list[list.length - 1];
-  const loX = offset(range.lo, width);
-  const hiX = offset(range.hi, width);
+  const loX = offset(domain, range.lo, width);
+  const hiX = offset(domain, range.hi, width);
 
   return (
     <View style={styles.wrap}>
       <View style={styles.head}>
-        <Text style={styles.title}>Presidents in play</Text>
-        <Text style={styles.value}>{rangeText(range)}</Text>
+        <Text style={styles.title}>{strings.rangeTitle}</Text>
+        <Text style={[styles.value, { color: accent }]}>{rangeText(domain, range)}</Text>
       </View>
 
-      <View
-        style={styles.slider}
-        onLayout={(e: LayoutChangeEvent) => {
-          const w = e.nativeEvent.layout.width;
-          live.current.width = w;
-          setWidth(w);
-        }}
-        {...pan.panHandlers}>
-        <View style={styles.rail} />
-        <View style={[styles.fill, { left: loX + THUMB / 2, width: hiX - loX }]} />
+      {domain.slider ? (
+        <View
+          style={styles.slider}
+          onLayout={(e: LayoutChangeEvent) => {
+            const w = e.nativeEvent.layout.width;
+            live.current.width = w;
+            setWidth(w);
+          }}
+          {...pan.panHandlers}>
+          <View style={styles.rail} />
+          <View
+            style={[
+              styles.fill,
+              { left: loX + THUMB / 2, width: hiX - loX, backgroundColor: accent },
+            ]}
+          />
 
-        <Thumb
-          label="Lowest presidency number"
-          value={range.lo}
-          x={loX}
-          active={active === 'lo'}
-          onNudge={(v) => onChange({ lo: Math.min(clampNo(v), range.hi), hi: range.hi })}
-        />
-        <Thumb
-          label="Highest presidency number"
-          value={range.hi}
-          x={hiX}
-          active={active === 'hi'}
-          onNudge={(v) => onChange({ lo: range.lo, hi: Math.max(clampNo(v), range.lo) })}
-        />
-      </View>
+          <Thumb
+            label={strings.thumbLo}
+            value={range.lo}
+            span={span}
+            accent={accent}
+            x={loX}
+            active={active === 'lo'}
+            onNudge={(v) => onChange({ lo: Math.min(clampNo(domain, v), range.hi), hi: range.hi })}
+          />
+          <Thumb
+            label={strings.thumbHi}
+            value={range.hi}
+            span={span}
+            accent={accent}
+            x={hiX}
+            active={active === 'hi'}
+            onNudge={(v) => onChange({ lo: range.lo, hi: Math.max(clampNo(domain, v), range.lo) })}
+          />
+        </View>
+      ) : null}
 
       <View style={styles.presets}>
-        {PRESETS.map((p) => {
+        {domain.presets.map((p) => {
           const on = rangesEqual(range, { lo: p.lo, hi: p.hi });
           return (
             <Pressable
               key={p.label}
-              onPress={() => onChange(makeRange(p.lo, p.hi))}
+              onPress={() => onChange(makeRange(domain, p.lo, p.hi))}
               accessibilityRole="button"
               accessibilityState={{ selected: on }}
               hitSlop={6}
               style={({ pressed }) => [
                 styles.chip,
-                on && styles.chipOn,
-                pressed && styles.chipPressed,
+                on && [styles.chipOn, { backgroundColor: accent }],
+                pressed && { borderColor: accent },
               ]}>
               <Text style={[styles.chipLabel, on && styles.chipLabelOn]}>{p.label}</Text>
             </Pressable>
@@ -157,8 +178,8 @@ export function RangePicker({
       </View>
 
       <Text style={styles.count}>
-        {list.length} {list.length === 1 ? 'term' : 'terms'}
-        {first && last ? ` — ${first.name} to ${last.name}` : ''}
+        {strings.count(list.length)}
+        {first && last ? strings.spanNames(first.name, last.name) : ''}
       </Text>
     </View>
   );
@@ -167,12 +188,16 @@ export function RangePicker({
 function Thumb({
   label,
   value,
+  span,
+  accent,
   x,
   active,
   onNudge,
 }: {
   label: string;
   value: number;
+  span: Range;
+  accent: string;
   x: number;
   active: boolean;
   onNudge: (v: number) => void;
@@ -181,11 +206,11 @@ function Thumb({
     <View
       // Absolute position is driven by state, so nothing has to be remounted
       // when a preset or a clamp moves a thumb from outside the drag.
-      style={[styles.thumb, { left: x }, active && styles.thumbActive]}
+      style={[styles.thumb, { left: x, borderColor: accent }, active && styles.thumbActive]}
       accessible
       accessibilityRole="adjustable"
       accessibilityLabel={label}
-      accessibilityValue={{ min: NO_MIN, max: NO_MAX, now: value }}
+      accessibilityValue={{ min: span.lo, max: span.hi, now: value }}
       accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
       onAccessibilityAction={(e) =>
         onNudge(value + (e.nativeEvent.actionName === 'increment' ? 1 : -1))
@@ -194,17 +219,26 @@ function Thumb({
   );
 }
 
+/** How many steps the track covers. Never zero — a one-record domain would
+ *  otherwise divide by it. */
+function spanOf(domain: Domain): number {
+  const { lo, hi } = bounds(domain);
+  return Math.max(1, hi - lo);
+}
+
 /** Track pixels the thumb centre can travel across. */
 function usable(width: number): number {
   return Math.max(1, width - THUMB);
 }
 
-function offset(value: number, width: number): number {
-  return ((value - NO_MIN) / SPAN) * Math.max(0, width - THUMB);
+function offset(domain: Domain, value: number, width: number): number {
+  const { lo } = bounds(domain);
+  return ((value - lo) / spanOf(domain)) * Math.max(0, width - THUMB);
 }
 
-function valueAt(x: number, width: number): number {
-  return clampNo(NO_MIN + Math.round(((x - THUMB / 2) / usable(width)) * SPAN));
+function valueAt(domain: Domain, x: number, width: number): number {
+  const { lo } = bounds(domain);
+  return clampNo(domain, lo + Math.round(((x - THUMB / 2) / usable(width)) * spanOf(domain)));
 }
 
 /** Which bound a touch at `v` is asking to move. Outside the selected band it is
@@ -231,7 +265,6 @@ const styles = StyleSheet.create({
   value: {
     fontFamily: fonts.serifBold,
     fontSize: 17,
-    color: colors.brick,
     fontVariant: ['tabular-nums'],
   },
 
@@ -246,7 +279,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     backgroundColor: colors.tan,
   },
-  fill: { position: 'absolute', height: 5, borderRadius: radius.pill, backgroundColor: colors.brick },
+  fill: { position: 'absolute', height: 5, borderRadius: radius.pill },
   thumb: {
     position: 'absolute',
     // Load-bearing: locationX is measured against the *event target*, so a touch
@@ -261,7 +294,6 @@ const styles = StyleSheet.create({
     borderRadius: THUMB / 2,
     backgroundColor: colors.paperWarm,
     borderWidth: 3,
-    borderColor: colors.brick,
     ...Platform.select({
       android: { elevation: 2 },
       default: {
@@ -285,8 +317,7 @@ const styles = StyleSheet.create({
     borderColor: colors.tan,
     backgroundColor: colors.chip,
   },
-  chipOn: { backgroundColor: colors.brick, borderColor: 'transparent' },
-  chipPressed: { borderColor: colors.brick },
+  chipOn: { borderColor: 'transparent' },
   chipLabel: { fontSize: 13, fontWeight: '600', color: colors.brown },
   chipLabelOn: { color: colors.paper },
 

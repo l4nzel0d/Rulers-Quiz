@@ -1,7 +1,7 @@
 import { forwardRef } from 'react';
 import { StyleSheet, Text, TextInput, View, type ReturnKeyTypeOptions } from 'react-native';
 
-import { FIELDS, type FieldKey } from '@/lib/fields';
+import type { FieldSpec } from '@/lib/domain';
 import { colors, radius } from '@/theme';
 
 /* .field — styles.css:442. The label is plain sentence-case body copy, not the
@@ -9,7 +9,9 @@ import { colors, radius } from '@/theme';
  * as in styles.css:476-480. */
 
 type Props = {
-  field: FieldKey;
+  /** The field's own spec, handed down by the domain — the label, placeholder
+   *  and keyboard all come from there, so this component names no field. */
+  spec: FieldSpec;
   value: string;
   onChangeText: (v: string) => void;
   /** null while unanswered; true/false once graded. */
@@ -20,10 +22,9 @@ type Props = {
 };
 
 export const AnswerField = forwardRef<TextInput, Props>(function AnswerField(
-  { field, value, onChangeText, mark, autoFocus, returnKeyType, onSubmitEditing },
+  { spec, value, onChangeText, mark, autoFocus, returnKeyType, onSubmitEditing },
   ref
 ) {
-  const spec = FIELDS[field];
   const graded = mark !== null;
 
   return (

@@ -1,22 +1,26 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { FULL_RANGE, parseRange, rangeSlug, type Range } from './range';
+import type { DomainCore } from './domain';
+import { bounds, parseRangeIn, rangeSlug, type Range } from './range';
 
-const STORE_KEY = 'usq.range';
+/* Keyed per domain: the two index on the same `no` space but mean entirely
+ * different things by it, so a range chosen under /us must not follow the player
+ * into /ru. */
+const key = (domain: DomainCore) => `usq.range.${domain.key}`;
 
 /** Falls back to the full range if nothing is stored or storage is unavailable. */
-export async function loadRange(): Promise<Range> {
+export async function loadRange(domain: DomainCore): Promise<Range> {
   try {
-    const saved = await AsyncStorage.getItem(STORE_KEY);
-    return parseRange(saved) ?? FULL_RANGE;
+    const saved = await AsyncStorage.getItem(key(domain));
+    return parseRangeIn(domain, saved) ?? bounds(domain);
   } catch {
-    return FULL_RANGE;
+    return bounds(domain);
   }
 }
 
-export async function saveRange(r: Range): Promise<void> {
+export async function saveRange(domain: DomainCore, r: Range): Promise<void> {
   try {
-    await AsyncStorage.setItem(STORE_KEY, rangeSlug(r));
+    await AsyncStorage.setItem(key(domain), rangeSlug(r));
   } catch {
     /* storage unavailable — the choice just won't persist */
   }

@@ -1,40 +1,51 @@
-import type { President } from '@/data/presidents';
+import type { Ruler } from './domain';
 
 /* Answer normalisation ------------------------------------------------------
  * Strict match, but only after case, spaces and punctuation are collapsed:
  *   "Dwight David Eisenhower" -> "dwightdavideisenhower"
+ *   "Пётр I"                  -> "петрi"
  *   "2009 – 2017"             -> "20092017"
- * Generational suffixes are optional, so "James Earl Carter" is accepted
- * alongside "James Earl Carter Jr."
+ *
+ * Unicode-aware on purpose. The ASCII-only form this replaced reduced every
+ * Cyrillic name to the empty string and made "Пётр I" and "Николай I" equal,
+ * because it kept only the Latin numeral. `ё` folds to `е`: nobody types it
+ * consistently, and no two rulers are told apart by it.
+ *
+ * Suffixes are significant — there is no suffix-dropping anywhere in the app.
+ * "Barack Hussein Obama" is not accepted for #44, and Николай I is not accepted
+ * for Николай II. The same rule reads as strictness in English and as plain
+ * correctness in Russian.
  */
 
 export function norm(s: string | number): string {
-  return String(s).toLowerCase().replace(/[^a-z0-9]/g, '');
+  return String(s)
+    .toLowerCase()
+    .replace(/ё/g, 'е')
+    .replace(/[^\p{L}\p{N}]/gu, '');
 }
 
-export function dropSuffix(key: string): string {
-  return key.replace(/(jr|sr|ii|iii|iv)$/, '');
-}
-
-/** Every accepted spelling of a president's name, with and without a suffix. */
-export function nameKeys(p: President): string[] {
+/** Every accepted spelling of a ruler's name: the canonical one, the birth name
+ *  where it differs, and any further aliases the record carries. */
+export function nameKeys(r: Ruler): string[] {
   const keys: string[] = [];
-  for (const n of [p.name, p.givenName]) {
-    if (!n) continue;
-    const k = norm(n);
-    keys.push(k, dropSuffix(k));
+  for (const n of [r.name, r.givenName, ...(r.aliases ?? [])]) {
+    if (n) keys.push(norm(n));
   }
   return keys;
 }
 
-/** Every accepted spelling of a term. Ongoing terms take several forms. */
-export function yearKeys(p: President): string[] {
-  if (p.end !== null) return [norm(`${p.start}${p.end}`)];
-  // Ongoing term: accept the open form or the scheduled end year.
-  return [norm(`${p.start}present`), norm(`${p.start}`), norm(`${p.start}${p.start + 4}`)];
+/** Every accepted spelling of a term. An ongoing term takes several forms: the
+ *  open one in the domain's own words, the bare start year, and the scheduled
+ *  end year when the record names one. */
+export function yearKeys(r: Ruler, presentAliases: string[]): string[] {
+  if (r.end !== null) return [norm(`${r.start}${r.end}`)];
+  const keys = presentAliases.map((word) => norm(`${r.start}${word}`));
+  keys.push(norm(`${r.start}`));
+  if (r.scheduledEnd) keys.push(norm(`${r.start}${r.scheduledEnd}`));
+  return keys;
 }
 
 /** Display form, e.g. "1789–1797" (en dash). */
-export function yearsText(p: President): string {
-  return `${p.start}–${p.end === null ? 'present' : p.end}`;
+export function yearsText(r: Ruler, present: string): string {
+  return `${r.start}–${r.end === null ? present : r.end}`;
 }

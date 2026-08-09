@@ -5,8 +5,12 @@
   "trailingSlash": false,
   "rewrites": [
     {
-      "source": "/quiz/:mode",
-      "destination": "/quiz/[mode].html"
+      "source": "/us/quiz/:mode",
+      "destination": "/us/quiz/[mode].html"
+    },
+    {
+      "source": "/ru/quiz/:mode",
+      "destination": "/ru/quiz/[mode].html"
     }
   ]
 }

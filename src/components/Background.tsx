@@ -1,21 +1,26 @@
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, View } from 'react-native';
+import type { ImageSourcePropType } from 'react-native';
 
 import { colors, scrim } from '@/theme';
 
 /** The fixed full-bleed photo plus its readability scrim. In the web build these
- *  were body::before / body::after; here they sit behind the router's screens. */
-export function Background() {
+ *  were body::before / body::after; here they sit behind the router's screens.
+ *  The photo comes from the surrounding domain; a domain without one yet paints
+ *  the scrim over the flat ground below. */
+export function Background({ source }: { source: ImageSourcePropType | null }) {
   return (
     <View style={styles.fill}>
-      <Image
-        source={require('@/assets/images/background.jpg')}
-        style={StyleSheet.absoluteFill}
-        contentFit="cover"
-        cachePolicy="memory-disk"
-        transition={0}
-      />
+      {source ? (
+        <Image
+          source={source}
+          style={StyleSheet.absoluteFill}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={0}
+        />
+      ) : null}
       <LinearGradient
         colors={[...scrim.colors]}
         locations={[...scrim.locations]}

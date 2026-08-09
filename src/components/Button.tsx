@@ -9,6 +9,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 
+import { useAccent } from '@/state/DomainContext';
 import { colors, radius } from '@/theme';
 
 /* .btn — styles.css:541. `font: inherit` there means the system sans, not the
@@ -30,6 +31,7 @@ export const Button = forwardRef<View, Props>(function Button(
   ref
 ) {
   const primary = variant === 'primary';
+  const accent = useAccent();
   return (
     <Pressable
       ref={ref}
@@ -40,6 +42,7 @@ export const Button = forwardRef<View, Props>(function Button(
       style={({ pressed }) => [
         styles.base,
         primary ? styles.primary : styles.quiet,
+        primary && { backgroundColor: accent, shadowColor: accent },
         // Replaces the web build's :active { transform: translateY(1px) }.
         pressed && styles.pressed,
         disabled && styles.disabled,

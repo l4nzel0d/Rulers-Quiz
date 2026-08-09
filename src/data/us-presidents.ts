@@ -1,3 +1,5 @@
+import type { Ruler } from '@/lib/domain';
+
 /* One record per presidency number.
  *
  * name       full name as normally used (always complete — middle names included)
@@ -7,18 +9,12 @@
  * Cleveland (22, 24) and Trump (45, 47) appear twice: nonconsecutive terms get
  * separate presidency numbers. Consecutive re-elections do not — Grant's two
  * terms are a single record, #18, spanning 1869-1877.
+ *
+ * Here `no` is the presidency number itself, and /us puts it on screen. The
+ * Russian domain carries the same field purely as a chronological index.
  */
 
-export type President = {
-  no: number;
-  name: string;
-  start: number;
-  /** null means the term is ongoing */
-  end: number | null;
-  givenName?: string;
-};
-
-export const PRESIDENTS: President[] = [
+export const US_PRESIDENTS: Ruler[] = [
   { no: 1,  name: "George Washington",            start: 1789, end: 1797 },
   { no: 2,  name: "John Adams",                   start: 1797, end: 1801 },
   { no: 3,  name: "Thomas Jefferson",             start: 1801, end: 1809 },
@@ -69,5 +65,6 @@ export const PRESIDENTS: President[] = [
   { no: 44, name: "Barack Hussein Obama II",      start: 2009, end: 2017 },
   { no: 45, name: "Donald John Trump",            start: 2017, end: 2021 },
   { no: 46, name: "Joseph Robinette Biden Jr.",   start: 2021, end: 2025 },
-  { no: 47, name: "Donald John Trump",            start: 2025, end: null },
+  { no: 47, name: "Donald John Trump",            start: 2025, end: null,
+            scheduledEnd: 2029 },
 ];

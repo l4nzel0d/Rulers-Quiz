@@ -1,5 +1,4 @@
-import { PRESIDENTS, type President } from '@/data/presidents';
-import { FIELDS, GIVENS, ORDER, type FieldKey, type GivenKey, type ModeKey } from './fields';
+import type { DomainCore, FieldKey, GivenKey, ModeKey, Ruler } from './domain';
 
 export function shuffle<T>(list: T[]): T[] {
   const a = list.slice();
@@ -10,28 +9,33 @@ export function shuffle<T>(list: T[]): T[] {
   return a;
 }
 
-/* Cleveland and Trump each hold two presidency numbers. When the name is the
- * prompt, either term is a valid answer — the name alone cannot distinguish
- * them. A portrait can: each term has its own photograph, so it grades against
- * that term only, like the number and years prompts. */
-export function candidates(rec: President, given: GivenKey): President[] {
+/* Some rulers hold more than one term: Cleveland and Trump under /us, Putin
+ * under /ru. When the name is the prompt, either term is a valid answer — the
+ * name alone cannot distinguish them. A portrait can: each term has its own
+ * photograph, so it grades against that term only, like the other prompts.
+ *
+ * Searched over the whole domain rather than the selected range, so a term that
+ * sits outside the current pool still counts as an answer. */
+export function candidates(domain: DomainCore, rec: Ruler, given: GivenKey): Ruler[] {
   if (given !== 'name') return [rec];
-  return PRESIDENTS.filter((p) => p.name === rec.name);
+  return domain.records.filter((r) => r.name === rec.name);
 }
 
 /** What to show as the prompt for a question in this mode. */
-export function pickGiven(mode: ModeKey): GivenKey {
-  return mode === 'mixed' ? GIVENS[Math.floor(Math.random() * GIVENS.length)] : mode;
+export function pickGiven(domain: DomainCore, mode: ModeKey): GivenKey {
+  const givens = domain.givens;
+  return mode === 'mixed' ? givens[Math.floor(Math.random() * givens.length)] : mode;
 }
 
-/** The fields the player has to type, given the one on show. Two for a field
- *  prompt; all three for a portrait, which is not itself a field. */
-export function answerFields(given: GivenKey): FieldKey[] {
-  return ORDER.filter((f) => f !== given);
+/** The fields the player has to type, given the one on show. A field prompt
+ *  filters itself out; a portrait, not being a field, filters nothing — which is
+ *  why /us asks three answers for a portrait and /ru asks two. */
+export function answerFields(domain: DomainCore, given: GivenKey): FieldKey[] {
+  return domain.order.filter((f) => f !== given);
 }
 
 export type Question = {
-  rec: President;
+  rec: Ruler;
   given: GivenKey;
   answers: FieldKey[];
 };
@@ -40,8 +44,8 @@ export type Grade = {
   allRight: boolean;
   /** Per-field correctness, scored against the best-fitting candidate term. */
   marks: Record<string, boolean>;
-  /** Every term that counts as an answer — both for Cleveland/Trump. */
-  terms: President[];
+  /** Every term that counts as an answer — both of them for a repeat holder. */
+  terms: Ruler[];
 };
 
 /**
@@ -49,16 +53,16 @@ export type Grade = {
  * Scores every candidate term and keeps the best fit, so a player naming
  * either Cleveland term is credited for the one they actually meant.
  */
-export function grade(q: Question, inputs: Record<string, string>): Grade {
-  const terms = candidates(q.rec, q.given);
+export function grade(domain: DomainCore, q: Question, inputs: Record<string, string>): Grade {
+  const terms = candidates(domain, q.rec, q.given);
 
   let best: { marks: Record<string, boolean>; hits: number } | null = null;
-  for (const p of terms) {
+  for (const r of terms) {
     const marks: Record<string, boolean> = {};
     let hits = 0;
     for (const f of q.answers) {
       const value = (inputs[f] ?? '').trim();
-      marks[f] = value !== '' && FIELDS[f].check(p, value);
+      marks[f] = value !== '' && domain.fields[f].check(r, value);
       if (marks[f]) hits++;
     }
     if (!best || hits > best.hits) best = { marks, hits };
@@ -76,14 +80,14 @@ export function grade(q: Question, inputs: Record<string, string>): Grade {
  * question repeats until the whole pool has cycled.
  */
 export class Deck {
-  private remaining: President[] = [];
-  private readonly picks: President[];
+  private remaining: Ruler[] = [];
+  private readonly picks: Ruler[];
 
-  constructor(picks: President[]) {
+  constructor(picks: Ruler[]) {
     this.picks = picks;
   }
 
-  draw(): President {
+  draw(): Ruler {
     if (!this.remaining.length) this.remaining = shuffle(this.picks);
     return this.remaining.pop()!;
   }
