@@ -1,5 +1,13 @@
 import { forwardRef } from 'react';
-import { StyleSheet, Text, TextInput, View, type ReturnKeyTypeOptions } from 'react-native';
+import {
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  type KeyboardTypeOptions,
+  type ReturnKeyTypeOptions,
+} from 'react-native';
 
 import type { FieldSpec } from '@/lib/domain';
 import { colors, radius } from '@/theme';
@@ -21,6 +29,26 @@ type Props = {
   onSubmitEditing?: () => void;
 };
 
+/* 'numbers-and-punctuation' is an iOS-only keyboardType: it is the one keyboard
+ * that offers digits and a '-' at once, so the years field asks for it. Nothing
+ * else recognises the name — Android's ReactTextInputManager falls through to
+ * TYPE_CLASS_TEXT and react-native-web to type="text", which is why the years
+ * field came up with a letter keyboard on both.
+ *
+ * The substitute is 'phone-pad', not 'numeric'. 'numeric' maps to
+ * TYPE_CLASS_NUMBER | DECIMAL | SIGNED, and Android's digits key listener then
+ * accepts a '-' only in first position — "1762-1796" would be untypeable.
+ * 'phone-pad' is TYPE_CLASS_PHONE, whose dialer key listener takes '-'
+ * anywhere, and on web it becomes type="tel" and the same dial pad.
+ *
+ * This has to live here rather than in the domain: `src/domains/*-core.ts` is
+ * imported by `npm test` and may not touch a react-native *value* like
+ * Platform. Keyed off the keyboard, not the field, so it names no field. */
+function resolveKeyboard(t: KeyboardTypeOptions | undefined): KeyboardTypeOptions | undefined {
+  if (t === 'numbers-and-punctuation' && Platform.OS !== 'ios') return 'phone-pad';
+  return t;
+}
+
 export const AnswerField = forwardRef<TextInput, Props>(function AnswerField(
   { spec, value, onChangeText, mark, autoFocus, returnKeyType, onSubmitEditing },
   ref
@@ -40,7 +68,7 @@ export const AnswerField = forwardRef<TextInput, Props>(function AnswerField(
         editable={!graded}
         placeholder={spec.placeholder}
         placeholderTextColor={colors.placeholder}
-        keyboardType={spec.keyboardType}
+        keyboardType={resolveKeyboard(spec.keyboardType)}
         returnKeyType={returnKeyType}
         onSubmitEditing={onSubmitEditing}
         submitBehavior="submit"

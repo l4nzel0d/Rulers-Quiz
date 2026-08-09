@@ -132,6 +132,15 @@ merge because `selectionText` reads *coverage* rather than shape — 20-31 still
 - **An `expo-image` that swaps `source` needs a `recyclingKey`.** Without one the `transition`
   cross-fades the *previous* portrait into the next question, showing the last answer under the
   new prompt. See `src/components/PortraitPrompt.tsx`.
+- **`FieldSpec.keyboardType` is not portable, and the domain can't fix it.** The years field wants
+  digits *and* a `-`, which on iOS is `numbers-and-punctuation` — a name no other platform knows.
+  Android falls through to `TYPE_CLASS_TEXT` and web to `type="text"`, so the field came up
+  alphabetic on both. `AnswerField.resolveKeyboard` substitutes `'phone-pad'` off-iOS. Not
+  `'numeric'`: that carries `TYPE_NUMBER_FLAG_SIGNED`, and Android's digits key listener then
+  takes a `-` only in first position, which makes `1762-1796` untypeable. `'phone-pad'` is
+  `TYPE_CLASS_PHONE`, whose dialer key listener takes it anywhere. The mapping cannot live in
+  `src/domains/*-core.ts`, because `npm test` imports those and they may not touch a
+  react-native *value* such as `Platform`.
 - **The answer inputs are a focus chain of one, two *or three* fields.** Mixed alternates between
   them, so `QuizScreen` keys the return-key wiring off `q.answers.length - 1`, not off index 1,
   and holds an array of refs that `nextQuestion` clears. The ref callback must have a block body —
