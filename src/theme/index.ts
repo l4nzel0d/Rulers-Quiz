@@ -61,6 +61,10 @@ export const fonts = {
   serif: 'Gelasio_400Regular',
   /** Every serif run in the web build is font-weight 700. */
   serifBold: 'Gelasio_700Bold',
+  /** The one italic run in the app: the years under a browse card's name. A real
+   *  face rather than fontStyle:'italic', which Android would either synthesise
+   *  or silently ignore on a family that has no italic loaded. */
+  serifItalic: 'Gelasio_400Regular_Italic',
   /** System UI font: Roboto on Android, SF on iOS — matches styles.css:37. */
   body: Platform.select({ ios: 'System', default: 'sans-serif' }),
 } as const;

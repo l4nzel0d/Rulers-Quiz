@@ -1,6 +1,7 @@
 // Imported per weight, not from the package root: the barrel re-exports all
 // eight faces and Metro would bundle every one of them (~850KB).
 import { Gelasio_400Regular } from '@expo-google-fonts/gelasio/400Regular';
+import { Gelasio_400Regular_Italic } from '@expo-google-fonts/gelasio/400Regular_Italic';
 import { Gelasio_700Bold } from '@expo-google-fonts/gelasio/700Bold';
 import { useFonts } from 'expo-font';
 import { DefaultTheme, Stack, ThemeProvider } from 'expo-router';
@@ -27,7 +28,11 @@ const transparentTheme = {
  *  fallback font. The stored range is gated one level down, in each domain's
  *  RangeProvider — the root sits above both domains and has no range of its own. */
 export default function RootLayout() {
-  const [fontsLoaded, fontError] = useFonts({ Gelasio_400Regular, Gelasio_700Bold });
+  const [fontsLoaded, fontError] = useFonts({
+    Gelasio_400Regular,
+    Gelasio_400Regular_Italic,
+    Gelasio_700Bold,
+  });
   const ready = fontsLoaded || !!fontError;
 
   useEffect(() => {

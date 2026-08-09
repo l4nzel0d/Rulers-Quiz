@@ -60,6 +60,9 @@ export type DomainStrings = {
   browse: (terms: number) => string;
   /** List screen intro. */
   listLede: (terms: number, people: number) => string;
+  /** The list screen's two views, named on the toggle above the records. */
+  viewList: string;
+  viewCards: string;
   /** Range picker heading. */
   rangeTitle: string;
   /** Range picker live count, e.g. "20 terms". */

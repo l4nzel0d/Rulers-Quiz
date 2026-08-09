@@ -2,13 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   PanResponder,
   Platform,
-  Pressable,
   StyleSheet,
   Text,
   View,
   type LayoutChangeEvent,
 } from 'react-native';
 
+import { Chip } from '@/components/Chip';
 import type { Domain } from '@/lib/domain';
 import {
   bounds,
@@ -189,33 +189,25 @@ export function RangePicker({
       ) : null}
 
       <View style={styles.presets}>
-        {domain.presets.map((p) => {
-          // Lit when the era is wholly in play, however it got there: the chip
-          // for the Soviet period lights whether it was tapped or arrived inside
-          // "Все". Two chips tapped in turn therefore agree with the readout.
-          const on = covers(range, p);
-          return (
-            <Pressable
-              key={p.label}
-              onPress={() =>
-                onChange(
-                  domain.slider
-                    ? [makeRange(domain, p.lo, p.hi)]
-                    : toggleSpan(domain, range, { lo: p.lo, hi: p.hi })
-                )
-              }
-              accessibilityRole={domain.slider ? 'button' : 'checkbox'}
-              accessibilityState={{ selected: on, checked: on }}
-              hitSlop={6}
-              style={({ pressed }) => [
-                styles.chip,
-                on && [styles.chipOn, { backgroundColor: accent }],
-                pressed && { borderColor: accent },
-              ]}>
-              <Text style={[styles.chipLabel, on && styles.chipLabelOn]}>{p.label}</Text>
-            </Pressable>
-          );
-        })}
+        {domain.presets.map((p) => (
+          <Chip
+            key={p.label}
+            label={p.label}
+            // Lit when the era is wholly in play, however it got there: the chip
+            // for the Soviet period lights whether it was tapped or arrived
+            // inside "Все". Two chips tapped in turn therefore agree with the
+            // readout.
+            on={covers(range, p)}
+            onPress={() =>
+              onChange(
+                domain.slider
+                  ? [makeRange(domain, p.lo, p.hi)]
+                  : toggleSpan(domain, range, { lo: p.lo, hi: p.hi })
+              )
+            }
+            accessibilityRole={domain.slider ? 'button' : 'checkbox'}
+          />
+        ))}
       </View>
 
       {/* The two ends only describe the pool while it is one run. Across a gap
@@ -365,19 +357,8 @@ const styles = StyleSheet.create({
   // Replaces the web build's :focus-visible ring on the thumb.
   thumbActive: { transform: [{ scale: 1.15 }] },
 
-  // .presets / .chip — styles.css:318
+  // .presets — styles.css:318. The chip itself is src/components/Chip.tsx.
   presets: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  chip: {
-    paddingVertical: 7,
-    paddingHorizontal: 11,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.tan,
-    backgroundColor: colors.chip,
-  },
-  chipOn: { borderColor: 'transparent' },
-  chipLabel: { fontSize: 13, fontWeight: '600', color: colors.brown },
-  chipLabelOn: { color: colors.paper },
 
   count: { fontSize: 13, lineHeight: 19, color: colors.muted },
 });

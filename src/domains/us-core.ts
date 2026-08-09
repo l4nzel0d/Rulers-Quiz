@@ -70,6 +70,8 @@ export const US_CORE: DomainCore = {
     listLede: (terms, people) =>
       `${terms} terms, ${people} people. Cleveland and Trump each appear twice — ` +
       'nonconsecutive terms get separate numbers.',
+    viewList: 'List',
+    viewCards: 'Cards',
     rangeTitle: 'Presidents in play',
     count: (n) => `${n} ${n === 1 ? 'term' : 'terms'}`,
     spanNames: (first, last) => ` — ${first} to ${last}`,

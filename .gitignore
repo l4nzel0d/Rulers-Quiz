@@ -45,3 +45,6 @@ example
 # local build output
 dist-check/
 dist-web/
+
+# legacy codebase
+.legacy/

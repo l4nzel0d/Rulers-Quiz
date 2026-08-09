@@ -27,3 +27,29 @@ export async function saveRange(domain: DomainCore, sel: Selection): Promise<voi
     /* storage unavailable — the choice just won't persist */
   }
 }
+
+/** How the list screen draws its records: as rows, or as portrait cards. */
+export type ListView = 'list' | 'cards';
+
+/* Not keyed per domain, unlike the range above. A range means something
+ * different in each domain — the same `no` picks different people — but "I would
+ * rather see faces than rows" is a preference about the screen, and a player who
+ * expressed it under /us means it under /ru too. */
+const VIEW_KEY = 'usq.listview';
+
+/** Falls back to the row list, which is what the screen has always shown. */
+export async function loadListView(): Promise<ListView> {
+  try {
+    return (await AsyncStorage.getItem(VIEW_KEY)) === 'cards' ? 'cards' : 'list';
+  } catch {
+    return 'list';
+  }
+}
+
+export async function saveListView(view: ListView): Promise<void> {
+  try {
+    await AsyncStorage.setItem(VIEW_KEY, view);
+  } catch {
+    /* storage unavailable — the choice just won't persist */
+  }
+}
