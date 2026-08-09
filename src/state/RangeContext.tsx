@@ -1,12 +1,14 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 
 import type { Domain } from '@/lib/domain';
-import { bounds, type Range } from '@/lib/range';
+import { fullSelection, type Selection } from '@/lib/range';
 import { loadRange, saveRange } from '@/lib/storage';
 
 type RangeContextValue = {
-  range: Range;
-  setRange: (r: Range) => void;
+  /** One span under /us, where the slider owns it; one or more under /ru, where
+   *  the chips are a set. */
+  range: Selection;
+  setRange: (r: Selection) => void;
   /** False until the stored range has been read back. */
   hydrated: boolean;
 };
@@ -16,7 +18,7 @@ const RangeContext = createContext<RangeContextValue | null>(null);
 /** Mounted per domain, so the two never share a stored range — the same span of
  *  `no` means different centuries on either side. */
 export function RangeProvider({ domain, children }: { domain: Domain; children: ReactNode }) {
-  const [range, setRangeState] = useState<Range>(() => bounds(domain));
+  const [range, setRangeState] = useState<Selection>(() => fullSelection(domain));
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -33,7 +35,7 @@ export function RangeProvider({ domain, children }: { domain: Domain; children: 
 
   // Write-through: state updates immediately, storage catches up.
   const setRange = useCallback(
-    (r: Range) => {
+    (r: Selection) => {
       setRangeState(r);
       void saveRange(domain, r);
     },

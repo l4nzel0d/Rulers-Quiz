@@ -21,7 +21,7 @@ import { PortraitPrompt } from '@/components/PortraitPrompt';
 import { RevealPanel } from '@/components/RevealPanel';
 import { TextLink } from '@/components/TextLink';
 import { givenLabel, isModeKey, type FieldKey } from '@/lib/domain';
-import { parseRangeIn, pool, rangeText, type Range } from '@/lib/range';
+import { parseSelectionIn, pool, selectionText, type Selection } from '@/lib/range';
 import { Deck, answerFields, grade, pickGiven, type Grade, type Question } from '@/lib/quiz';
 import { useDomain } from '@/state/DomainContext';
 import { useRange } from '@/state/RangeContext';
@@ -80,8 +80,8 @@ export function QuizScreen() {
   // The route may carry a range (web deep links keep a round shareable);
   // otherwise fall back to the persisted choice. Clamped on the way in, so a
   // hand-edited URL cannot select an empty pool.
-  const activeRange: Range = useMemo(
-    () => parseRangeIn(domain, params.range) ?? storedRange,
+  const activeRange: Selection = useMemo(
+    () => parseSelectionIn(domain, params.range) ?? storedRange,
     [domain, params.range, storedRange]
   );
 
@@ -162,7 +162,7 @@ export function QuizScreen() {
           <Text style={styles.modeTag}>
             {domain.modes[mode].title}
             <Text style={styles.tagDot}> · </Text>
-            <Text style={styles.tagRange}>{rangeText(domain, activeRange)}</Text>
+            <Text style={styles.tagRange}>{selectionText(domain, activeRange)}</Text>
           </Text>
 
           {q ? (

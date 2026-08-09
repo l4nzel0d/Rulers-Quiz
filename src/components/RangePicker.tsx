@@ -13,11 +13,13 @@ import type { Domain } from '@/lib/domain';
 import {
   bounds,
   clampNo,
+  covers,
   makeRange,
   pool,
-  rangeText,
-  rangesEqual,
+  selectionText,
+  toggleSpan,
   type Range,
+  type Selection,
 } from '@/lib/range';
 import { colors, fonts, radius, type } from '@/theme';
 
@@ -34,7 +36,14 @@ import { colors, fonts, radius, type } from '@/theme';
  *
  * The slider is optional. A domain that never shows its `no` sets slider:false
  * and the chips become the whole control: an arbitrary numeric span means
- * nothing to a player who is never told the numbers. */
+ * nothing to a player who is never told the numbers.
+ *
+ * That is also what decides how the chips behave. Where the slider owns the
+ * range, a chip is a shortcut into it and picking one replaces the span — the
+ * slider has no way to draw a gap, so it must not be handed one. Where the chips
+ * *are* the control they are a set: each toggles, and "Романовы + Россия" leaves
+ * the Soviet period out. Both cases hand up a Selection; only the slider domain
+ * promises it will always hold exactly one span. */
 
 const THUMB = 22; // 1.35rem
 
@@ -57,19 +66,32 @@ export function RangePicker({
   onChange,
 }: {
   domain: Domain;
-  range: Range;
-  onChange: (r: Range) => void;
+  range: Selection;
+  onChange: (r: Selection) => void;
 }) {
   const [width, setWidth] = useState(0);
   const [active, setActive] = useState<Bound | null>(null);
 
   const span = useMemo(() => bounds(domain), [domain]);
 
-  const live = useRef<Live>({ domain, range, onChange, width: 0, bound: 'lo', from: span.lo });
+  /* The slider edits one span, and a slider domain's selection only ever holds
+   * one — see parseSelectionIn, which collapses anything else on the way in.
+   * Every move it makes replaces the selection outright. */
+  const sliderRange = range[0];
+  const setSliderRange = (r: Range) => onChange([r]);
+
+  const live = useRef<Live>({
+    domain,
+    range: sliderRange,
+    onChange: setSliderRange,
+    width: 0,
+    bound: 'lo',
+    from: span.lo,
+  });
   useEffect(() => {
     live.current.domain = domain;
-    live.current.range = range;
-    live.current.onChange = onChange;
+    live.current.range = sliderRange;
+    live.current.onChange = setSliderRange;
   });
 
   // Created once: the responder system dispatches to whichever handlers the
@@ -108,14 +130,14 @@ export function RangePicker({
   const list = pool(domain, range);
   const first = list[0];
   const last = list[list.length - 1];
-  const loX = offset(domain, range.lo, width);
-  const hiX = offset(domain, range.hi, width);
+  const loX = offset(domain, sliderRange.lo, width);
+  const hiX = offset(domain, sliderRange.hi, width);
 
   return (
     <View style={styles.wrap}>
       <View style={styles.head}>
         <Text style={styles.title}>{strings.rangeTitle}</Text>
-        <Text style={[styles.value, { color: accent }]}>{rangeText(domain, range)}</Text>
+        <Text style={[styles.value, { color: accent }]}>{selectionText(domain, range)}</Text>
       </View>
 
       {domain.slider ? (
@@ -137,34 +159,53 @@ export function RangePicker({
 
           <Thumb
             label={strings.thumbLo}
-            value={range.lo}
+            value={sliderRange.lo}
             span={span}
             accent={accent}
             x={loX}
             active={active === 'lo'}
-            onNudge={(v) => onChange({ lo: Math.min(clampNo(domain, v), range.hi), hi: range.hi })}
+            onNudge={(v) =>
+              setSliderRange({
+                lo: Math.min(clampNo(domain, v), sliderRange.hi),
+                hi: sliderRange.hi,
+              })
+            }
           />
           <Thumb
             label={strings.thumbHi}
-            value={range.hi}
+            value={sliderRange.hi}
             span={span}
             accent={accent}
             x={hiX}
             active={active === 'hi'}
-            onNudge={(v) => onChange({ lo: range.lo, hi: Math.max(clampNo(domain, v), range.lo) })}
+            onNudge={(v) =>
+              setSliderRange({
+                lo: sliderRange.lo,
+                hi: Math.max(clampNo(domain, v), sliderRange.lo),
+              })
+            }
           />
         </View>
       ) : null}
 
       <View style={styles.presets}>
         {domain.presets.map((p) => {
-          const on = rangesEqual(range, { lo: p.lo, hi: p.hi });
+          // Lit when the era is wholly in play, however it got there: the chip
+          // for the Soviet period lights whether it was tapped or arrived inside
+          // "Все". Two chips tapped in turn therefore agree with the readout.
+          const on = covers(range, p);
           return (
             <Pressable
               key={p.label}
-              onPress={() => onChange(makeRange(domain, p.lo, p.hi))}
-              accessibilityRole="button"
-              accessibilityState={{ selected: on }}
+              onPress={() =>
+                onChange(
+                  domain.slider
+                    ? [makeRange(domain, p.lo, p.hi)]
+                    : toggleSpan(domain, range, { lo: p.lo, hi: p.hi })
+                )
+              }
+              accessibilityRole={domain.slider ? 'button' : 'checkbox'}
+              accessibilityState={{ selected: on, checked: on }}
               hitSlop={6}
               style={({ pressed }) => [
                 styles.chip,
@@ -177,9 +218,12 @@ export function RangePicker({
         })}
       </View>
 
+      {/* The two ends only describe the pool while it is one run. Across a gap
+        * "Михаил Фёдорович … Путин" would name everyone in between as well, so a
+        * gapped selection shows the count alone and lets the chips say the rest. */}
       <Text style={styles.count}>
         {strings.count(list.length)}
-        {first && last ? strings.spanNames(first.name, last.name) : ''}
+        {range.length === 1 && first && last ? strings.spanNames(first.name, last.name) : ''}
       </Text>
     </View>
   );

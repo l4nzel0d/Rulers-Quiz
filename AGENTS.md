@@ -30,7 +30,7 @@ any code — Expo's APIs change between SDKs.
 ```
 npm start                        # dev server — needs a dev client, NOT Expo Go (see below)
 npm run web                      # browser
-npm test                         # 110 assertions over both domains, zero dependencies
+npm test                         # 127 assertions over both domains, zero dependencies
 npx tsc --noEmit                 # typecheck
 npx expo export --platform web   # static dist/
 eas build --profile preview      # arm64-v8a APK; profiles live in eas.json
@@ -75,6 +75,13 @@ not special-cased.
 Session state (score, current question, inputs, result) lives in a `useReducer` inside the quiz
 screen and dies on unmount. The only persisted state is the range: `RangeContext` over
 AsyncStorage under `usq.range.<domain>`, plus a `?range=1-20` query param that overrides it.
+
+That range is a `Selection` — a *list* of spans, not a pair of bounds, because `/ru`'s chips are
+a set and «Романовы + Россия» has a hole in it. `makeSelection` is the only constructor: it
+clamps, sorts and merges spans that overlap **or touch**, so two neighbouring eras become the one
+run of `no` they are and every consumer can compare shapes without re-merging. Names survive that
+merge because `selectionText` reads *coverage* rather than shape — 20-31 still prints «Советский
+период + Россия», and the same lookup lights both chips.
 
 ## Things that will bite you
 
@@ -129,6 +136,13 @@ AsyncStorage under `usq.range.<domain>`, plus a `?range=1-20` query param that o
   them, so `QuizScreen` keys the return-key wiring off `q.answers.length - 1`, not off index 1,
   and holds an array of refs that `nextQuestion` clears. The ref callback must have a block body —
   React 19 reads a returned value as a cleanup function and throws.
+- **`domain.slider` decides what a chip *is*.** Where the slider owns the range (`/us`) a chip is
+  a shortcut into it and replaces the span — the slider cannot draw a gap, so it must never be
+  handed one, and `parseSelectionIn` keeps only the first span of a hand-edited multi-span URL
+  under such a domain. Where the chips are the whole control (`/ru`) they toggle, and any
+  combination of eras is reachable. Switching the last one off is refused: an empty selection is
+  an empty pool, and a chip that answered a tap by selecting everything would be worse than one
+  that stays lit.
 - **`RangePicker`'s twin-thumb slider is two fixes deep**, and optional. `/ru` sets
   `slider: false` and the chips become the whole control. It is hand-built on `PanResponder`
   (core RN, so no extra dependency). Both of these are load-bearing: the responder must claim
@@ -136,8 +150,10 @@ AsyncStorage under `usq.range.<domain>`, plus a `?range=1-20` query param that o
   `ScrollView` steals it and every drag degrades to a tap; and the thumbs must stay
   `pointerEvents: 'none'`, because `locationX` is measured against the event target, so a touch
   that lands on a thumb would report 0-22px and snap it to the first record.
-- **Both domains index on the same `no` space.** A range is two bare integers in storage and in
-  the URL, so anything arriving from outside goes through `parseRangeIn(domain, …)`, which clamps.
+- **Both domains index on the same `no` space.** In storage and in the URL a range is bare
+  integers in pairs — `20-27`, or `1-19,28-31` once the chips hold a set — so anything arriving
+  from outside goes through `parseSelectionIn(domain, …)`, which clamps. The single-span form
+  written by earlier builds still parses, which is what keeps old links and stored values working.
   Storage keys are per domain for the same reason.
 - **`src/theme/index.ts` is a translation of `.legacy/styles.css`**, not an independent design
   system. Numbers are the CSS values at a 16px root — `0.75rem` reads as `12`. Change the CSS

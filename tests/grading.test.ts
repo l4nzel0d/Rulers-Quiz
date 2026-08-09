@@ -3,7 +3,18 @@ import { US_CORE } from '@/domains/us-core';
 import { norm } from '@/lib/answers';
 import { isModeKey, showsNumber, type DomainCore, type GivenKey } from '@/lib/domain';
 import { Deck, answerFields, grade, pickGiven, type Question } from '@/lib/quiz';
-import { bounds, makeRange, parseRange, parseRangeIn, pool, rangeText } from '@/lib/range';
+import {
+  bounds,
+  covers,
+  makeRange,
+  makeSelection,
+  parseSelection,
+  parseSelectionIn,
+  pool,
+  selectionSlug,
+  selectionText,
+  toggleSpan,
+} from '@/lib/range';
 
 /* Both domains are exercised here. Only the *-core modules are imported: the
  * us.ts / ru.ts wrappers require() images, which this harness cannot load. */
@@ -36,22 +47,26 @@ const RU = RU_CORE;
 // ---- data sanity ----------------------------------------------------------
 check('47 US records', US.records.length, 47);
 check('US bounds', bounds(US), { lo: 1, hi: 47 });
-check('pool 1-20 size', pool(US, { lo: 1, hi: 20 }).length, 20);
-check('pool respects bounds', pool(US, { lo: 6, hi: 8 }).map((r) => r.no), [6, 7, 8]);
+check('pool 1-20 size', pool(US, [{ lo: 1, hi: 20 }]).length, 20);
+check('pool respects bounds', pool(US, [{ lo: 6, hi: 8 }]).map((r) => r.no), [6, 7, 8]);
 check('US numbers its rulers', showsNumber(US), true);
 
 // ---- range codec ----------------------------------------------------------
-check('parseRange valid', parseRange('1-20'), { lo: 1, hi: 20 });
-check('parseRange junk', parseRange('banana'), null);
-check('parseRange null', parseRange(null), null);
+check('parseSelection valid', parseSelection('1-20'), [{ lo: 1, hi: 20 }]);
+check('parseSelection junk', parseSelection('banana'), null);
+check('parseSelection null', parseSelection(null), null);
 check('makeRange reorders', makeRange(US, 30, 4), { lo: 4, hi: 30 });
 check('makeRange clamps', makeRange(US, -5, 900), { lo: 1, hi: 47 });
 // Anything from outside the app is clamped on the way in, so a hand-edited URL
 // or a range left over from the other domain cannot select an empty pool.
-check('parseRangeIn clamps', parseRangeIn(US, '900-999'), { lo: 47, hi: 47 });
-check('rangeText full', rangeText(US, { lo: 1, hi: 47 }), 'All presidents');
-check('rangeText partial', rangeText(US, { lo: 1, hi: 20 }), '#1–#20');
-check('rangeText names a preset', rangeText(US, { lo: 1, hi: 8 }), 'Founding');
+check('parseSelectionIn clamps', parseSelectionIn(US, '900-999'), [{ lo: 47, hi: 47 }]);
+// The slider cannot draw a gap, so a multi-span URL keeps its first span here.
+check('parseSelectionIn collapses under a slider', parseSelectionIn(US, '1-8,20-25'), [
+  { lo: 1, hi: 8 },
+]);
+check('selectionText full', selectionText(US, [{ lo: 1, hi: 47 }]), 'All presidents');
+check('selectionText partial', selectionText(US, [{ lo: 1, hi: 20 }]), '#1–#20');
+check('selectionText names a preset', selectionText(US, [{ lo: 1, hi: 8 }]), 'Founding');
 
 // ---- Cleveland: two terms, one name --------------------------------------
 // Prompted with the name, EITHER term must be accepted.
@@ -159,14 +174,14 @@ check('partial marks', ask(US, 16, 'no', { name: 'Abraham Lincoln', years: '' })
 
 // ---- deck: no repeat until the pool cycles -------------------------------
 {
-  const picks = pool(US, { lo: 1, hi: 10 });
+  const picks = pool(US, [{ lo: 1, hi: 10 }]);
   const deck = new Deck(picks);
   const firstCycle = Array.from({ length: 10 }, () => deck.draw().no).sort((a, b) => a - b);
   check('deck cycles through every pick once', firstCycle, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
   const secondCycle = Array.from({ length: 10 }, () => deck.draw().no).sort((a, b) => a - b);
   check('deck reshuffles after exhaustion', secondCycle, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
 
-  const single = new Deck(pool(US, { lo: 5, hi: 5 }));
+  const single = new Deck(pool(US, [{ lo: 5, hi: 5 }]));
   check('single-item pool repeats safely', [single.draw().no, single.draw().no], [5, 5]);
 }
 
@@ -277,18 +292,55 @@ check('RU portrait asks two fields', answerFields(RU, 'portrait'), ['name', 'yea
 check('RU name prompt asks one field', answerFields(RU, 'name'), ['years']);
 
 // ---- eras -----------------------------------------------------------------
-check('Romanov era size', pool(RU, { lo: 1, hi: 19 }).length, 19);
-check('Soviet era size', pool(RU, { lo: 20, hi: 27 }).length, 8);
-check('Russia era size', pool(RU, { lo: 28, hi: 31 }).length, 4);
+check('Romanov era size', pool(RU, [{ lo: 1, hi: 19 }]).length, 19);
+check('Soviet era size', pool(RU, [{ lo: 20, hi: 27 }]).length, 8);
+check('Russia era size', pool(RU, [{ lo: 28, hi: 31 }]).length, 4);
 check('era chips cover everyone', RU.presets.map((p) => p.label), [
   'Все',
   'Романовы',
   'Советский период',
   'Россия',
 ]);
-check('rangeText names an era', rangeText(RU, { lo: 20, hi: 27 }), 'Советский период');
-check('rangeText full', rangeText(RU, { lo: 1, hi: 31 }), 'Все правители');
+check('selectionText names an era', selectionText(RU, [{ lo: 20, hi: 27 }]), 'Советский период');
+check('selectionText full', selectionText(RU, [{ lo: 1, hi: 31 }]), 'Все правители');
 check('RU has no slider', RU.slider, false);
+
+// ---- the chips are a set --------------------------------------------------
+// Where the chips are the whole control they toggle, and any combination of
+// eras is reachable — including one with a hole in it.
+const ROMANOV = { lo: 1, hi: 19 };
+const SOVIET = { lo: 20, hi: 27 };
+const RUSSIA = { lo: 28, hi: 31 };
+const ALL_RU = { lo: 1, hi: 31 };
+
+// Two neighbouring eras are one run of `no`, so they merge — and the merge is
+// invisible to the player, because the names come back out of coverage.
+const sovietPlusRussia = makeSelection(RU, [SOVIET, RUSSIA]);
+check('adjacent eras merge', sovietPlusRussia, [{ lo: 20, hi: 31 }]);
+check('merged eras keep both names', selectionText(RU, sovietPlusRussia), 'Советский период + Россия');
+check('merged eras pool together', pool(RU, sovietPlusRussia).length, 12);
+check('a merged selection travels as one span', selectionSlug(sovietPlusRussia), '20-31');
+
+// The case a single pair of bounds cannot express.
+const gapped = makeSelection(RU, [ROMANOV, RUSSIA]);
+check('a gapped selection keeps its hole', gapped, [ROMANOV, RUSSIA]);
+check('a gapped selection skips the middle', pool(RU, gapped).length, 23);
+check('a gapped selection names its eras', selectionText(RU, gapped), 'Романовы + Россия');
+check('a gapped selection round-trips', parseSelectionIn(RU, selectionSlug(gapped)), gapped);
+check('gapped slug', selectionSlug(gapped), '1-19,28-31');
+
+// Coverage, not shape: the Soviet chip lights up inside "Все" too.
+check('an era inside the full span still reads as covered', covers([ALL_RU], SOVIET), true);
+check('a partly covered era is not covered', covers([{ lo: 20, hi: 25 }], SOVIET), false);
+
+// Toggling: off subtracts, and cutting the middle out of "Все" is how the
+// gapped selection is reached in the UI.
+check('toggle off cuts a hole', toggleSpan(RU, [ALL_RU], SOVIET), gapped);
+check('toggle on adds an era', toggleSpan(RU, [ROMANOV], RUSSIA), [ROMANOV, RUSSIA]);
+check('toggle back on refills the hole', toggleSpan(RU, gapped, SOVIET), [ALL_RU]);
+// The last era standing cannot be switched off: an empty selection is an empty
+// pool, and a chip that answered a tap by selecting everything would be worse.
+check('the last era stays lit', toggleSpan(RU, [ROMANOV], ROMANOV), [ROMANOV]);
 
 // ---- regnal numerals are part of the name --------------------------------
 const nikolai1 = byNo(RU, 16);
@@ -360,7 +412,12 @@ check(
 
 // ---- the two domains do not share a range --------------------------------
 // Both index on `no`, so an unclamped span would silently mean something else.
-check('RU clamps a US-sized range', parseRangeIn(RU, '1-47'), { lo: 1, hi: 31 });
+check('RU clamps a US-sized range', parseSelectionIn(RU, '1-47'), [{ lo: 1, hi: 31 }]);
+// A span that clamps onto its neighbour comes back as one, never as a duplicate.
+check('RU clamps every span it is handed', parseSelectionIn(RU, '1-19,25-47'), [
+  { lo: 1, hi: 19 },
+  { lo: 25, hi: 31 },
+]);
 
 // ---- report ---------------------------------------------------------------
 console.log(`\n  ${pass} passed, ${failures.length} failed\n`);

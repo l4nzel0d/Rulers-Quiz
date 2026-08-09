@@ -7,7 +7,7 @@ import { Card } from '@/components/Card';
 import { ModeCard } from '@/components/ModeCard';
 import { RangePicker } from '@/components/RangePicker';
 import { TextLink } from '@/components/TextLink';
-import { rangeSlug } from '@/lib/range';
+import { selectionSlug } from '@/lib/range';
 import { useDomain } from '@/state/DomainContext';
 import { useRange } from '@/state/RangeContext';
 import { type, useLayout } from '@/theme';
@@ -53,7 +53,7 @@ export function MenuScreen() {
                   onPress={() =>
                     router.push({
                       pathname: quizPath,
-                      params: { mode: key, range: rangeSlug(range) },
+                      params: { mode: key, range: selectionSlug(range) },
                     })
                   }
                 />
