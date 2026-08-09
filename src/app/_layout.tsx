@@ -8,6 +8,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { Background } from '@/components/Background';
@@ -58,9 +59,15 @@ function Shell() {
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
-      <RangeProvider>
-        <Shell />
-      </RangeProvider>
+      {/* Feeds the quiz screen's KeyboardAwareScrollView. Android draws
+       * edge-to-edge and no longer resizes for the keyboard, so nothing else
+       * lifts a focused field above it. Native-only: on web the library's
+       * bindings are no-ops and this is an empty wrapper. */}
+      <KeyboardProvider>
+        <RangeProvider>
+          <Shell />
+        </RangeProvider>
+      </KeyboardProvider>
     </SafeAreaProvider>
   );
 }

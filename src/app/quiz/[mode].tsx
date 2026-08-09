@@ -3,15 +3,14 @@ import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
 import {
   Keyboard,
-  KeyboardAvoidingView,
   Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
   useWindowDimensions,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AnswerField } from '@/components/AnswerField';
@@ -140,110 +139,112 @@ export default function QuizScreen() {
     <View style={styles.root}>
       <AppBar score={{ right: state.right, asked: state.asked }} />
 
-      <KeyboardAvoidingView
+      {/* Replaces a KeyboardAvoidingView that was inert on Android: under
+       * edge-to-edge the window no longer resizes for the keyboard, so the last
+       * of a portrait question's three fields sat underneath it. This both
+       * makes room and scrolls the focused field into it. */}
+      <KeyboardAwareScrollView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView
-          contentContainerStyle={[
-            styles.content,
-            { paddingHorizontal: gutter, paddingBottom: insets.bottom + 24 },
-          ]}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}>
-          <View style={[styles.inner, { maxWidth }]}>
-            {/* .mode-tag — app.js:341. The separator dot is tan, the range stone. */}
-            <Text style={styles.modeTag}>
-              {MODES[mode].title}
-              <Text style={styles.tagDot}> · </Text>
-              <Text style={styles.tagRange}>{rangeText(activeRange)}</Text>
-            </Text>
+        contentContainerStyle={[
+          styles.content,
+          { paddingHorizontal: gutter, paddingBottom: insets.bottom + 24 },
+        ]}
+        bottomOffset={24}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}>
+        <View style={[styles.inner, { maxWidth }]}>
+          {/* .mode-tag — app.js:341. The separator dot is tan, the range stone. */}
+          <Text style={styles.modeTag}>
+            {MODES[mode].title}
+            <Text style={styles.tagDot}> · </Text>
+            <Text style={styles.tagRange}>{rangeText(activeRange)}</Text>
+          </Text>
 
-            {q ? (
-              <Card style={[styles.card, wide && styles.cardWide]}>
-                <Text style={styles.givenLabel}>{givenLabel(q.given)}</Text>
-                {q.given === 'portrait' ? (
-                  <PortraitPrompt no={q.rec.no} />
-                ) : (
-                  <Text
-                    style={[
-                      styles.givenValue,
-                      { fontSize: givenFontSize, lineHeight: givenFontSize * 1.15 },
-                      q.given !== 'name' && styles.givenNumeric,
-                    ]}>
-                    {FIELDS[q.given].show(q.rec)}
-                  </Text>
-                )}
+          {q ? (
+            <Card style={[styles.card, wide && styles.cardWide]}>
+              <Text style={styles.givenLabel}>{givenLabel(q.given)}</Text>
+              {q.given === 'portrait' ? (
+                <PortraitPrompt no={q.rec.no} />
+              ) : (
+                <Text
+                  style={[
+                    styles.givenValue,
+                    { fontSize: givenFontSize, lineHeight: givenFontSize * 1.15 },
+                    q.given !== 'name' && styles.givenNumeric,
+                  ]}>
+                  {FIELDS[q.given].show(q.rec)}
+                </Text>
+              )}
 
-                <View style={styles.fields}>
-                  {q.answers.map((f, i) => {
-                    const last = i === q.answers.length - 1;
-                    return (
-                      <AnswerField
-                        key={`${state.qIndex}-${f}`}
-                        // Block body: React 19 treats a returned value from a
-                        // callback ref as a cleanup function and throws.
-                        ref={(el) => {
-                          inputRefs.current[i] = el;
-                        }}
-                        field={f}
-                        value={state.inputs[f] ?? ''}
-                        onChangeText={(v) => dispatch({ kind: 'input', field: f, value: v })}
-                        mark={state.result ? (state.result.marks[f] ?? false) : null}
-                        // A portrait has to be looked at first; raising the
-                        // keyboard would scroll the whole prompt off-screen.
-                        // The web has no on-screen keyboard, so it focuses
-                        // every prompt, portraits included.
-                        autoFocus={
-                          i === 0 &&
-                          !state.result &&
-                          (Platform.OS === 'web' || q.given !== 'portrait')
-                        }
-                        returnKeyType={last ? 'done' : 'next'}
-                        onSubmitEditing={
-                          last ? onGrade : () => inputRefs.current[i + 1]?.focus()
-                        }
-                      />
-                    );
-                  })}
-                </View>
-
-                {state.result ? (
-                  <RevealPanel
-                    allRight={state.result.allRight}
-                    terms={state.result.terms}
-                    givenName={q.rec.givenName}
-                  />
-                ) : null}
-
-                {/* .actions — full width on phones, 12rem wide past the
-                    breakpoint (styles.css:592). */}
-                <View style={styles.actions}>
-                  {state.result ? (
-                    <Button
-                      ref={nextButtonRef}
-                      label="Next question"
-                      onPress={nextQuestion}
-                      style={wide && styles.buttonWide}
+              <View style={styles.fields}>
+                {q.answers.map((f, i) => {
+                  const last = i === q.answers.length - 1;
+                  return (
+                    <AnswerField
+                      key={`${state.qIndex}-${f}`}
+                      // Block body: React 19 treats a returned value from a
+                      // callback ref as a cleanup function and throws.
+                      ref={(el) => {
+                        inputRefs.current[i] = el;
+                      }}
+                      field={f}
+                      value={state.inputs[f] ?? ''}
+                      onChangeText={(v) => dispatch({ kind: 'input', field: f, value: v })}
+                      mark={state.result ? (state.result.marks[f] ?? false) : null}
+                      // A portrait has to be looked at first; raising the
+                      // keyboard would scroll the whole prompt off-screen.
+                      // The web has no on-screen keyboard, so it focuses
+                      // every prompt, portraits included.
+                      autoFocus={
+                        i === 0 &&
+                        !state.result &&
+                        (Platform.OS === 'web' || q.given !== 'portrait')
+                      }
+                      returnKeyType={last ? 'done' : 'next'}
+                      onSubmitEditing={
+                        last ? onGrade : () => inputRefs.current[i + 1]?.focus()
+                      }
                     />
-                  ) : (
-                    <Button label="Check" onPress={onGrade} style={wide && styles.buttonWide} />
-                  )}
-                </View>
-              </Card>
-            ) : (
-              <Card style={styles.card}>
-                <Text style={type.body}>No presidents in this range.</Text>
-              </Card>
-            )}
+                  );
+                })}
+              </View>
 
-            <Text style={styles.hint}>
-              Full names only — birth names accepted where they differ.
-            </Text>
+              {state.result ? (
+                <RevealPanel
+                  allRight={state.result.allRight}
+                  terms={state.result.terms}
+                  givenName={q.rec.givenName}
+                />
+              ) : null}
 
-            <TextLink label="← Back to modes" onPress={() => router.navigate('/')} />
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+              {/* .actions — full width on phones, 12rem wide past the
+                  breakpoint (styles.css:592). */}
+              <View style={styles.actions}>
+                {state.result ? (
+                  <Button
+                    ref={nextButtonRef}
+                    label="Next question"
+                    onPress={nextQuestion}
+                    style={wide && styles.buttonWide}
+                  />
+                ) : (
+                  <Button label="Check" onPress={onGrade} style={wide && styles.buttonWide} />
+                )}
+              </View>
+            </Card>
+          ) : (
+            <Card style={styles.card}>
+              <Text style={type.body}>No presidents in this range.</Text>
+            </Card>
+          )}
+
+          <Text style={styles.hint}>
+            Full names only — birth names accepted where they differ.
+          </Text>
+
+          <TextLink label="← Back to modes" onPress={() => router.navigate('/')} />
+        </View>
+      </KeyboardAwareScrollView>
     </View>
   );
 }
