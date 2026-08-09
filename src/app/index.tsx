@@ -7,7 +7,10 @@ import { Background } from '@/components/Background';
 import { ModeCard } from '@/components/ModeCard';
 import { RU_CORE } from '@/domains/ru-core';
 import { US_CORE } from '@/domains/us-core';
-import { chooserGradient, type, useLayout } from '@/theme';
+import { type, useLayout } from '@/theme';
+
+// Metro needs a literal path, and the chooser has no domain to carry one for it.
+const CHOOSER_BACKGROUND = require('@/assets/images/background.jpg');
 
 /* The chooser. It sits above both domains, so there is no DomainProvider here —
  * AppBar and ModeCard fall back to the app's own name and accent. The cores are
@@ -38,9 +41,9 @@ export default function ChooserScreen() {
   return (
     <View style={styles.root}>
       {/* The chooser sits above both domains, so it carries its own ground
-       * rather than inheriting one — and having no photo of its own, it paints
-       * the palette's gradient in place of the scrim. */}
-      <Background source={null} gradient={chooserGradient} />
+       * rather than inheriting one: its own photo, under the same scrim the
+       * domain layouts paint over theirs. */}
+      <Background source={CHOOSER_BACKGROUND} />
       <AppBar />
 
       <ScrollView

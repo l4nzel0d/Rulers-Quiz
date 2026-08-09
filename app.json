@@ -15,7 +15,7 @@
     "android": {
       "package": "com.borvas.uspresidentsquiz",
       "adaptiveIcon": {
-        "backgroundColor": "#ffffff",
+        "backgroundColor": "#eeeeee",
         "foregroundImage": "./assets/images/android-icon-foreground.png"
       },
       "predictiveBackGestureEnabled": false
