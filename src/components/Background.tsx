@@ -8,8 +8,21 @@ import { colors, scrim } from '@/theme';
 /** The fixed full-bleed photo plus its readability scrim. In the web build these
  *  were body::before / body::after; here they sit behind the router's screens.
  *  The photo comes from the surrounding domain; a domain without one yet paints
- *  the scrim over the flat ground below. */
-export function Background({ source }: { source: ImageSourcePropType | null }) {
+ *  the scrim over the flat ground below.
+ *
+ *  `gradient` replaces the scrim outright, for a screen that carries no photo
+ *  and wants the ground itself to be the gradient rather than a wash over one. */
+export function Background({
+  source,
+  gradient = scrim,
+}: {
+  source: ImageSourcePropType | null;
+  // Tuples, not arrays: LinearGradient's own props demand at least two stops.
+  gradient?: {
+    colors: readonly [string, string, ...string[]];
+    locations: readonly [number, number, ...number[]];
+  };
+}) {
   return (
     <View style={styles.fill}>
       {source ? (
@@ -22,8 +35,8 @@ export function Background({ source }: { source: ImageSourcePropType | null }) {
         />
       ) : null}
       <LinearGradient
-        colors={[...scrim.colors]}
-        locations={[...scrim.locations]}
+        colors={[...gradient.colors]}
+        locations={[...gradient.locations]}
         style={StyleSheet.absoluteFill}
       />
     </View>

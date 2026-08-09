@@ -52,6 +52,16 @@ export const scrim = {
   locations: [0, 0.7, 1] as const,
 };
 
+/** The chooser's own ground. It sits above both domains, so it has no domain
+ *  photo to stand on and paints this instead of the scrim. The stops walk the
+ *  palette from `paperWarm` through `tan` and end between `tan` and
+ *  `terracotta`, so the ground warms toward the brick accent without ever
+ *  darkening far enough to fight the cards' translucent cream. */
+export const chooserGradient = {
+  colors: ['#f2eee4', '#ddd2ba', '#c0a48d'] as const,
+  locations: [0, 0.55, 1] as const,
+};
+
 /** --radius is 14px for surfaces; inputs, buttons and the reveal use 10. */
 export const radius = { input: 10, card: 14, pill: 999 } as const;
 

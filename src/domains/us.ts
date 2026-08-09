@@ -7,5 +7,5 @@ import { US_CORE } from './us-core';
 export const US: Domain = {
   ...US_CORE,
   portraits: US_PORTRAITS,
-  background: require('@/assets/images/background.jpg'),
+  background: require('@/assets/images/us-background.jpg'),
 };

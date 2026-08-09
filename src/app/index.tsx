@@ -7,7 +7,7 @@ import { Background } from '@/components/Background';
 import { ModeCard } from '@/components/ModeCard';
 import { RU_CORE } from '@/domains/ru-core';
 import { US_CORE } from '@/domains/us-core';
-import { type, useLayout } from '@/theme';
+import { chooserGradient, type, useLayout } from '@/theme';
 
 /* The chooser. It sits above both domains, so there is no DomainProvider here —
  * AppBar and ModeCard fall back to the app's own name and accent. The cores are
@@ -38,8 +38,9 @@ export default function ChooserScreen() {
   return (
     <View style={styles.root}>
       {/* The chooser sits above both domains, so it carries its own ground
-       * rather than inheriting one. */}
-      <Background source={require('@/assets/images/background.jpg')} />
+       * rather than inheriting one — and having no photo of its own, it paints
+       * the palette's gradient in place of the scrim. */}
+      <Background source={null} gradient={chooserGradient} />
       <AppBar />
 
       <ScrollView
