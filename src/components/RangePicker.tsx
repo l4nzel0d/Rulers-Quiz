@@ -304,9 +304,23 @@ function apply(s: Live, v: number): void {
 
 const styles = StyleSheet.create({
   wrap: { gap: 11 }, // 0.7rem
-  head: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 16 },
+  // Label left, readout right — but the readout is a sentence, not a number.
+  // "Романовы + Советский период" and "Founding + 19th c." are both wider than
+  // the space left beside the label, and a Text in a row does not shrink on its
+  // own (yoga's flexShrink defaults to 0), so it used to run off the card. The
+  // wrap drops it onto a line of its own instead; flexShrink then lets it break
+  // internally in the case where even a full line is not enough.
+  head: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    columnGap: 16,
+    rowGap: 2,
+  },
   title: type.eyebrow,
   value: {
+    flexShrink: 1,
     fontFamily: fonts.serifBold,
     fontSize: 17,
     fontVariant: ['tabular-nums'],
