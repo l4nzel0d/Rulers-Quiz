@@ -53,6 +53,9 @@ export type DomainStrings = {
   hint: string;
   /** The link at the foot of every screen. */
   back: string;
+  /** Menu link back out to the chooser, above both domains. Each domain says it
+   *  in its own language, because the player is still inside one when they read it. */
+  chooser: string;
   /** Menu link through to the list screen. */
   browse: (terms: number) => string;
   /** List screen intro. */

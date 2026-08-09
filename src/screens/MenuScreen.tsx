@@ -65,6 +65,12 @@ export function MenuScreen() {
             label={domain.strings.browse(domain.records.length)}
             onPress={() => router.push(listPath)}
           />
+
+          {/* The way back out of the domain. The list and quiz screens already
+            * carry "← Back to modes", which lands here, so this is the one screen
+            * that needs it — and navigate() pops to the chooser already on the
+            * stack rather than pushing a second copy of it. */}
+          <TextLink label={domain.strings.chooser} onPress={() => router.navigate('/')} />
         </View>
       </ScrollView>
     </View>

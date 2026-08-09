@@ -65,6 +65,7 @@ export const US_CORE: DomainCore = {
       'and asks for the rest. Questions keep coming until you stop.',
     hint: 'Full names only — suffixes included, birth names accepted where they differ.',
     back: '← Back to modes',
+    chooser: '← Pick another quiz',
     browse: (terms) => `Browse all ${terms} terms →`,
     listLede: (terms, people) =>
       `${terms} terms, ${people} people. Cleveland and Trump each appear twice — ` +
