@@ -35,17 +35,30 @@ type Props = {
  * TYPE_CLASS_TEXT and react-native-web to type="text", which is why the years
  * field came up with a letter keyboard on both.
  *
- * The substitute is 'phone-pad', not 'numeric'. 'numeric' maps to
+ * The Android substitute is 'phone-pad', not 'numeric'. 'numeric' maps to
  * TYPE_CLASS_NUMBER | DECIMAL | SIGNED, and Android's digits key listener then
  * accepts a '-' only in first position — "1762-1796" would be untypeable.
  * 'phone-pad' is TYPE_CLASS_PHONE, whose dialer key listener takes '-'
- * anywhere, and on web it becomes type="tel" and the same dial pad.
+ * anywhere.
+ *
+ * Web must NOT take that substitute, however tempting the symmetry: react-
+ * native-web turns 'phone-pad' into type="tel", and mobile Safari answers a
+ * tel input with the dial pad — ten digits and a '+ * #' page, with no '-', no
+ * space and no letters at all. The whole two-year answer, and "present" /
+ * «н. в.» with it, becomes untypeable. Nothing in the inputmode vocabulary
+ * gives digits *and* punctuation there ('numeric' and 'decimal' are narrower
+ * still, and type="number" would reject the value), so the honest fallback is
+ * the plain text keyboard: '-' is one page away rather than absent. Desktop
+ * has a real keyboard and never notices; Android web trades its dial pad for
+ * the same page turn.
  *
  * This has to live here rather than in the domain: `src/domains/*-core.ts` is
  * imported by `npm test` and may not touch a react-native *value* like
  * Platform. Keyed off the keyboard, not the field, so it names no field. */
 function resolveKeyboard(t: KeyboardTypeOptions | undefined): KeyboardTypeOptions | undefined {
-  if (t === 'numbers-and-punctuation' && Platform.OS !== 'ios') return 'phone-pad';
+  if (t !== 'numbers-and-punctuation') return t;
+  if (Platform.OS === 'android') return 'phone-pad';
+  if (Platform.OS === 'web') return 'default';
   return t;
 }
 
