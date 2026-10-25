@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/images/icon.png" alt="Rulers Quiz icon" width="96" height="96" />
+<img src="docs/logo.png" alt="Rulers Quiz logo" width="140" />
 
 # Rulers Quiz
 
